@@ -26,6 +26,9 @@ function FriendsTab() {
   const [pushStatus, setPushStatus] = useState('unknown');
   const [enabling,   setEnabling]   = useState(false);
   const [showShare,  setShowShare]  = useState(false);
+  const [recommended, setRecommended] = useState(null);
+  const [loadingRecommended, setLoadingRecommended] = useState(false);
+  const [sentTo, setSentTo] = useState({});
 
   useEffect(() => {
     api.getFriends().then(setFriends).catch(console.error).finally(() => setLoading(false));
@@ -46,6 +49,20 @@ function FriendsTab() {
       setUsername('');
       setFriends(await api.getFriends());
     } catch (err) { setError(err.message); }
+  }
+
+  async function toggleRecommended() {
+    if (recommended !== null) { setRecommended(null); return; }
+    setLoadingRecommended(true);
+    try { setRecommended(await api.getRecommendedFriends()); }
+    catch (err) { setError(err.message); }
+    finally { setLoadingRecommended(false); }
+  }
+
+  async function addFromRecommended(person) {
+    setSentTo(s => ({ ...s, [person.id]: true }));
+    try { await api.addFriend({ username: person.username }); }
+    catch (err) { setError(err.message); setSentTo(s => ({ ...s, [person.id]: false })); }
   }
 
   async function openConvo(friend) {
@@ -137,6 +154,28 @@ function FriendsTab() {
           <button className="btn-primary" type="submit">Send Request</button>
         </form>
       </div>
+
+      <button className="btn-secondary" style={{marginBottom:'16px'}} onClick={toggleRecommended}>
+        {recommended !== null ? 'Hide Recommended Friends' : 'Recommended Friends'}
+      </button>
+      {loadingRecommended && <div className="spinner"/>}
+      {recommended !== null && !loadingRecommended && (
+        <section className="section">
+          {recommended.length === 0 ? (
+            <p className="muted" style={{fontSize:'13px'}}>No suggestions yet — recommendations come from friends your friends have added.</p>
+          ) : recommended.map(p => (
+            <div key={p.id} className="list-item" style={{marginBottom:'6px'}}>
+              <div style={{flex:1}}>
+                <div className="item-main">{p.username}</div>
+                <div className="item-meta">{p.mutual_count} mutual friend{p.mutual_count===1?'':'s'}</div>
+              </div>
+              <button className="btn-ghost-sm" onClick={()=>addFromRecommended(p)} disabled={sentTo[p.id]}>
+                {sentTo[p.id] ? 'Sent' : 'Add Friend'}
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
 
       {pending.length > 0 && (
         <section className="section">

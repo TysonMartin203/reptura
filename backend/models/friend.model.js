@@ -36,4 +36,31 @@ async function areFriends(userId1, userId2) {
   return rows.length > 0;
 }
 
-module.exports = { sendRequest, acceptRequest, getFriends, areFriends };
+// People who share at least one accepted friend with you, excluding anyone
+// you're already connected to (accepted or pending, either direction) and
+// yourself, sorted by how many mutual friends they have with you.
+async function getRecommendedFriends(userId) {
+  const [rows] = await pool.query(
+    `WITH my_friends AS (
+       SELECT CASE WHEN requester_id = ? THEN receiver_id ELSE requester_id END AS friend_id
+       FROM Friends WHERE status = 'accepted' AND (requester_id = ? OR receiver_id = ?)
+     ),
+     excluded AS (
+       SELECT CASE WHEN requester_id = ? THEN receiver_id ELSE requester_id END AS excluded_id
+       FROM Friends WHERE requester_id = ? OR receiver_id = ?
+       UNION SELECT ?
+     )
+     SELECT u.id, u.username, COUNT(*) AS mutual_count
+     FROM my_friends mf
+     JOIN Friends f2 ON (f2.requester_id = mf.friend_id OR f2.receiver_id = mf.friend_id) AND f2.status = 'accepted'
+     JOIN Users u ON u.id = CASE WHEN f2.requester_id = mf.friend_id THEN f2.receiver_id ELSE f2.requester_id END
+     WHERE u.id NOT IN (SELECT excluded_id FROM excluded)
+     GROUP BY u.id, u.username
+     ORDER BY mutual_count DESC, u.username ASC
+     LIMIT 20`,
+    [userId, userId, userId, userId, userId, userId, userId]
+  );
+  return rows;
+}
+
+module.exports = { sendRequest, acceptRequest, getFriends, areFriends, getRecommendedFriends };

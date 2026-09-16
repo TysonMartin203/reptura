@@ -166,6 +166,56 @@ Give your best reasonable estimate rather than refusing, even when uncertain —
   }
 }
 
+// Reading a printed Nutrition Facts label gives exact per-serving numbers
+// rather than a visual estimate — far more precise than photographing the
+// food itself when a label is available. The person then picks how many
+// servings they actually had (or "the whole thing") and the frontend scales
+// the per-serving numbers accordingly, so the AI only has to do the one
+// exact-transcription job it's good at, not a fresh estimate every time.
+async function recognizeLabel(req, res) {
+  try {
+    const photo = req.files?.photo?.[0];
+    if (!photo) return res.status(400).json({ error: 'No photo provided' });
+    const client = getClient();
+
+    const prompt = `You are reading a printed Nutrition Facts label from a photo. Transcribe the exact values printed on the label — this is a transcription task, not an estimate, so read the numbers precisely rather than rounding or guessing.
+
+Return ONLY valid JSON, no markdown, in this exact structure:
+{
+  "name": "product name if visible on the label or packaging, else \\"Scanned Item\\"",
+  "servingSize": "the serving size exactly as printed, e.g. '1 cup (240ml)' or '2 cookies (30g)'",
+  "servingsPerContainer": number or null if not stated on the label,
+  "caloriesPerServing": number,
+  "proteinPerServing": number (grams),
+  "carbsPerServing": number (grams),
+  "fatPerServing": number (grams)
+}
+
+If any value isn't legible or isn't on the label, use your best judgment for a similar product rather than leaving it blank, but note the name should still reflect it's from a label. If this doesn't look like a nutrition label at all, still return your best-effort reading of whatever nutrition information is visible.`;
+
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 500,
+      temperature: 0,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: photo.mimetype, data: photo.buffer.toString('base64') } },
+          { type: 'text', text: prompt },
+        ],
+      }],
+    });
+
+    let text = message.content[0].text.trim();
+    text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
+    const result = JSON.parse(text);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not read that label: ' + err.message });
+  }
+}
+
 // Parse a spoken description of a meal into structured fields — reuses the
 // same "estimate, don't refuse" approach as the photo recognizer, just from text.
 async function parseVoice(req, res) {
@@ -207,4 +257,4 @@ Give your best reasonable estimate rather than refusing, even if the description
   }
 }
 
-module.exports = { create, update, listForDate, history, remove, recognize, parseVoice };
+module.exports = { create, update, listForDate, history, remove, recognize, recognizeLabel, parseVoice };

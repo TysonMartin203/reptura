@@ -49,8 +49,13 @@ export default function LogMeal() {
   const [voiceError, setVoiceError] = useState('');
   const [firstPhoto, setFirstPhoto] = useState(null);
   const [addingAngle, setAddingAngle] = useState(false);
+  const [scanningLabel, setScanningLabel] = useState(false);
+  const [labelResult, setLabelResult] = useState(null);
+  const [labelServings, setLabelServings] = useState('1');
+  const [labelError, setLabelError] = useState('');
   const fileRef = useRef();
   const secondFileRef = useRef();
+  const labelFileRef = useRef();
 
   const [meals, setMeals] = useState([]);
   const [totals, setTotals] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 });
@@ -148,6 +153,45 @@ export default function LogMeal() {
       if (secondFileRef.current) secondFileRef.current.value = '';
     }
   }
+
+  async function scanLabel(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setScanningLabel(true); setLabelError(''); setLabelResult(null);
+    try {
+      const compressed = await compressImage(file, { maxDimension: 1536, quality: 0.85 });
+      const fd = new FormData();
+      fd.append('photo', compressed);
+      const result = await api.recognizeLabel(fd);
+      setLabelResult(result);
+      setLabelServings(result.servingsPerContainer ? '1' : '1');
+    } catch (err) {
+      setLabelError(err.message || 'Could not read that label — try a clearer, well-lit shot.');
+    } finally {
+      setScanningLabel(false);
+      if (labelFileRef.current) labelFileRef.current.value = '';
+    }
+  }
+
+  function addLabelToMeal(servingsOverride) {
+    const servings = Number(servingsOverride ?? labelServings) || 0;
+    if (!labelResult || servings <= 0) return;
+    const label = servings === 1 ? '' : ` × ${servings}`;
+    setIngredients(prev => {
+      const cleanPrev = prev.filter(ing => ing.name.trim());
+      return [...cleanPrev, {
+        key: Math.random().toString(36).slice(2),
+        name: `${labelResult.name || 'Scanned Item'}${label} (${labelResult.servingSize || 'per label'})`,
+        calories: Math.round((labelResult.caloriesPerServing || 0) * servings) || '',
+        protein: Math.round((labelResult.proteinPerServing || 0) * servings * 10) / 10 || '',
+        carbs: Math.round((labelResult.carbsPerServing || 0) * servings * 10) / 10 || '',
+        fat: Math.round((labelResult.fatPerServing || 0) * servings * 10) / 10 || '',
+      }];
+    });
+    setLabelResult(null);
+    setLabelServings('1');
+  }
+
 
   async function handleVoiceTranscript(text) {
     setVoiceLoading(true); setVoiceError('');
@@ -262,6 +306,30 @@ export default function LogMeal() {
               )}
             </div>
           )}
+
+          <p className="muted" style={{fontSize:'12px',margin:'0 0 8px'}}>Have a nutrition label instead? Scanning it gives exact values rather than an estimate.</p>
+          <input ref={labelFileRef} type="file" accept="image/*" onChange={scanLabel} style={{display:'none'}} id="label-photo-input"/>
+          <label htmlFor="label-photo-input" className="btn-ghost-sm" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',cursor:'pointer',marginBottom:'12px'}}>
+            <IconCamera style={{width:'14px',height:'14px'}}/> {scanningLabel ? 'Reading label…' : 'Scan a Nutrition Label'}
+          </label>
+          {labelError && <p className="form-error" style={{marginBottom:'8px'}}>{labelError}</p>}
+          {labelResult && (
+            <div className="glass-card" style={{marginBottom:'12px',padding:'12px'}}>
+              <div style={{fontSize:'13px',fontWeight:'700',marginBottom:'2px'}}>{labelResult.name || 'Scanned Item'}</div>
+              <div className="muted" style={{fontSize:'12px',marginBottom:'8px'}}>Serving size: {labelResult.servingSize || 'not specified'} · {labelResult.caloriesPerServing} cal, {labelResult.proteinPerServing}g protein, {labelResult.carbsPerServing}g carbs, {labelResult.fatPerServing}g fat per serving</div>
+              <div style={{display:'flex',gap:'8px',alignItems:'center',marginBottom:'10px'}}>
+                <label className="label" style={{margin:0,flexShrink:0}}>Servings</label>
+                <input className="input" type="number" min="0" step="0.5" value={labelServings} onChange={e=>setLabelServings(e.target.value)} style={{maxWidth:'80px'}}/>
+                {labelResult.servingsPerContainer && (
+                  <button type="button" className="btn-ghost-sm" onClick={()=>{ setLabelServings(String(labelResult.servingsPerContainer)); addLabelToMeal(labelResult.servingsPerContainer); }}>
+                    Whole Container ({labelResult.servingsPerContainer})
+                  </button>
+                )}
+              </div>
+              <button type="button" className="btn-secondary" onClick={()=>addLabelToMeal()}>Add to Meal</button>
+            </div>
+          )}
+
           <VoiceNoteButton label="Or Describe What You Ate" onTranscript={handleVoiceTranscript}/>
           {voiceLoading && <p className="muted" style={{fontSize:'12px',marginTop:'6px'}}>Working it out…</p>}
           {voiceError && <p className="form-error" style={{marginTop:'6px'}}>{voiceError}</p>}

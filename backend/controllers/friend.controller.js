@@ -1,5 +1,5 @@
 const { findByUsername } = require('../models/user.model');
-const { sendRequest, acceptRequest, getFriends } = require('../models/friend.model');
+const { sendRequest, acceptRequest, getFriends, getRecommendedFriends } = require('../models/friend.model');
 
 async function add(req, res) {
   try {
@@ -37,4 +37,14 @@ async function list(req, res) {
   }
 }
 
-module.exports = { add, accept, list };
+async function recommended(req, res) {
+  try {
+    const suggestions = await getRecommendedFriends(req.userId);
+    res.json(suggestions);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+module.exports = { add, accept, list, recommended };

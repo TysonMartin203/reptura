@@ -68,6 +68,7 @@ export const api = {
   addFriend:    (b)   => request('POST', '/api/friends', b),
   acceptFriend: (rid) => request('PUT',  `/api/friends/${rid}/accept`, {}),
   getFriends:   ()    => request('GET',  '/api/friends'),
+  getRecommendedFriends: () => request('GET', '/api/friends/recommended'),
 
   sendMessage:     (b)   => request('POST', '/api/messages', b),
   getConversation: (fid) => request('GET',  `/api/messages/${fid}`),
@@ -76,6 +77,7 @@ export const api = {
   logMeal:          (b)    => request('POST',   '/api/meal-logs', b),
   updateLoggedMeal: (id,b) => request('PUT',    `/api/meal-logs/${id}`, b),
   recognizeFood:    (fd)   => uploadFile('/api/meal-logs/recognize', fd),
+  recognizeLabel:   (fd)   => uploadFile('/api/meal-logs/recognize-label', fd),
   parseMealVoice:   (b)    => request('POST', '/api/meal-logs/parse-voice', b),
   getMealsForDate:  (date) => request('GET',    `/api/meal-logs?date=${date}`),
   getMealLogHistory: ()    => request('GET',    '/api/meal-logs/history'),
