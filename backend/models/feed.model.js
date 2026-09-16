@@ -55,6 +55,8 @@ async function setReaction(feedEventId, userId, reaction) {
      ON DUPLICATE KEY UPDATE reaction = VALUES(reaction)`,
     [feedEventId, userId, reaction]
   );
+  const [[event]] = await pool.query('SELECT user_id, headline FROM FeedEvents WHERE id = ?', [feedEventId]);
+  return event || null;
 }
 
 async function removeReaction(feedEventId, userId) {

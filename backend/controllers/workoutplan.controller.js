@@ -232,30 +232,6 @@ Return ONLY valid JSON, no markdown. Structure:
   }
 }
 
-// Rebuild an existing saved plan from updated weight/goal/notes.
-// Fixes exercise ordering on an already-saved plan with no AI call at all —
-// same exercises, just reshuffled with the same deterministic algorithm used
-// right after generation, for anyone whose plan predates that fix.
-async function reorderPlan(req, res) {
-  try {
-    const [[existing]] = await pool.query('SELECT * FROM WorkoutPlans WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
-    if (!existing) return res.status(404).json({ error: 'Plan not found' });
-    const plan = typeof existing.plan === 'string' ? JSON.parse(existing.plan) : existing.plan;
-    if (Array.isArray(plan.days)) {
-      plan.days.forEach(day => {
-        if (Array.isArray(day.exercises)) day.exercises = reorderExercisesByMuscleGroup(day.exercises);
-      });
-    } else if (Array.isArray(plan.exercises)) {
-      plan.exercises = reorderExercisesByMuscleGroup(plan.exercises);
-    }
-    await pool.query('UPDATE WorkoutPlans SET plan = ? WHERE id = ?', [JSON.stringify(plan), req.params.id]);
-    res.json({ plan });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-}
-
 async function regenerate(req, res) {
   try {
     const client = getClient();
@@ -451,5 +427,5 @@ async function createCustom(req, res) {
 module.exports = {
   getTemplates, useTemplate,
   listPlans, getPlan, renamePlan, toggleFavorite, deletePlan, sharePlan,
-  generate, regenerate, reorderPlan, swapExercise, editExercise, exerciseInfo, createCustom,
+  generate, regenerate, swapExercise, editExercise, exerciseInfo, createCustom,
 };

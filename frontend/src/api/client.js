@@ -148,7 +148,6 @@ export const api = {
   deleteWorkoutPlan:(id)           => request('DELETE',`/api/workout-plans/${id}`),
   shareWorkoutPlan: (id,b)         => request('POST', `/api/workout-plans/${id}/share`, b),
   regenerateWorkoutPlan: (id,b)    => request('POST', `/api/workout-plans/${id}/regenerate`, b),
-  reorderWorkoutPlan: (id)         => request('POST', `/api/workout-plans/${id}/reorder`, {}),
   generateWorkoutPlan: (b)         => request('POST', '/api/workout-plans/generate', b),
   createCustomWorkoutPlan: (b)     => request('POST', '/api/workout-plans/custom', b),
   swapPlanExercise: (b)            => request('POST', '/api/workout-plans/swap-exercise', b),

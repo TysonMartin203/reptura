@@ -154,6 +154,11 @@ export default function Settings() {
     updateUser({ notifyMessages: next });
     try { await api.updateAccountSettings({ notifyMessages: next }); } catch {}
   }
+  async function toggleNotifyReactions() {
+    const next = !user.notifyReactions;
+    updateUser({ notifyReactions: next });
+    try { await api.updateAccountSettings({ notifyReactions: next }); } catch {}
+  }
 
   async function setWeightUnit(unit) {
     updateUser({ weightUnit: unit });
@@ -335,6 +340,13 @@ export default function Settings() {
             <div className="item-meta">New direct messages from friends</div>
           </div>
           <input type="checkbox" checked={user?.notifyMessages !== false} onChange={toggleNotifyMessages} style={{width:'18px',height:'18px',accentColor:'var(--accent)'}} />
+        </label>
+        <label className="list-item" style={{cursor:'pointer'}}>
+          <div style={{flex:1}}>
+            <div className="item-main">Reactions</div>
+            <div className="item-meta">Someone reacts to your feed post</div>
+          </div>
+          <input type="checkbox" checked={user?.notifyReactions !== false} onChange={toggleNotifyReactions} style={{width:'18px',height:'18px',accentColor:'var(--accent)'}} />
         </label>
       </div>
 

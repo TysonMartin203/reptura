@@ -18,6 +18,7 @@ function issueSession(res, user, extra = {}) {
     bio: user.bio || null,
     notifyBuzz: user.notify_buzz == null ? true : !!user.notify_buzz,
     notifyMessages: user.notify_messages == null ? true : !!user.notify_messages,
+    notifyReactions: user.notify_reactions == null ? true : !!user.notify_reactions,
     weightUnit: user.weight_unit || 'lbs',
     distanceUnit: user.distance_unit || 'mi',
     tutorialDone: !!user.tutorial_done,
@@ -71,7 +72,7 @@ async function register(req, res) {
       return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     const id = await createUser({ username, email, password });
     const token = jwt.sign({ userId: id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.status(201).json({ token, userId: id, username, email, theme: 'light', bio: null, notifyBuzz: true, notifyMessages: true, weightUnit: 'lbs', distanceUnit: 'mi', tutorialDone: false, isNewUser: true, isAdmin: false });
+    res.status(201).json({ token, userId: id, username, email, theme: 'light', bio: null, notifyBuzz: true, notifyMessages: true, notifyReactions: true, weightUnit: 'lbs', distanceUnit: 'mi', tutorialDone: false, isNewUser: true, isAdmin: false });
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY')
       return res.status(409).json({ error: 'Username or email already taken' });
@@ -141,11 +142,12 @@ async function uploadAvatar(req, res) {
 
 async function updateSettings(req, res) {
   try {
-    const { bio, notifyBuzz, notifyMessages, weightUnit, distanceUnit } = req.body;
+    const { bio, notifyBuzz, notifyMessages, notifyReactions, weightUnit, distanceUnit } = req.body;
     const sets = []; const vals = [];
     if (bio !== undefined) { sets.push('bio = ?'); vals.push(bio ? String(bio).slice(0, 280) : null); }
     if (notifyBuzz !== undefined) { sets.push('notify_buzz = ?'); vals.push(notifyBuzz ? 1 : 0); }
     if (notifyMessages !== undefined) { sets.push('notify_messages = ?'); vals.push(notifyMessages ? 1 : 0); }
+    if (notifyReactions !== undefined) { sets.push('notify_reactions = ?'); vals.push(notifyReactions ? 1 : 0); }
     if (weightUnit !== undefined) { sets.push('weight_unit = ?'); vals.push(weightUnit === 'kg' ? 'kg' : 'lbs'); }
     if (distanceUnit !== undefined) { sets.push('distance_unit = ?'); vals.push(distanceUnit === 'km' ? 'km' : 'mi'); }
     if (sets.length === 0) return res.json({ success: true });

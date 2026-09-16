@@ -12,7 +12,7 @@ import { getMacroGoals } from '../macroGoals';
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
 function blankIngredient() {
-  return { key: Math.random().toString(36).slice(2), name: '', calories: '', protein: '', carbs: '', fat: '' };
+  return { key: Math.random().toString(36).slice(2), name: '', calories: '', protein: '', carbs: '', fat: '', percent: 100 };
 }
 
 export default function LogMeal() {
@@ -29,13 +29,13 @@ export default function LogMeal() {
     if (editMeal) {
       const existing = editMeal.ingredients;
       if (Array.isArray(existing) && existing.length) {
-        return existing.map(ing => ({ key: Math.random().toString(36).slice(2), name: ing.name || '', calories: ing.calories ?? '', protein: ing.protein ?? '', carbs: ing.carbs ?? '', fat: ing.fat ?? '' }));
+        return existing.map(ing => ({ key: Math.random().toString(36).slice(2), name: ing.name || '', calories: ing.calories ?? '', protein: ing.protein ?? '', carbs: ing.carbs ?? '', fat: ing.fat ?? '', percent: 100 }));
       }
       // Older meals logged before per-ingredient breakdown existed — fall back to the single totals row.
-      return [{ key: 'edit', name: editMeal.name || '', calories: editMeal.calories ?? '', protein: editMeal.protein ?? '', carbs: editMeal.carbs ?? '', fat: editMeal.fat ?? '' }];
+      return [{ key: 'edit', name: editMeal.name || '', calories: editMeal.calories ?? '', protein: editMeal.protein ?? '', carbs: editMeal.carbs ?? '', fat: editMeal.fat ?? '', percent: 100 }];
     }
     if (prefill?.name) {
-      return [{ key: 'prefill', name: prefill.name, calories: prefill.calories ?? '', protein: prefill.protein ?? '', carbs: prefill.carbs ?? '', fat: prefill.fat ?? '' }];
+      return [{ key: 'prefill', name: prefill.name, calories: prefill.calories ?? '', protein: prefill.protein ?? '', carbs: prefill.carbs ?? '', fat: prefill.fat ?? '', percent: 100 }];
     }
     return [blankIngredient()];
   });
@@ -79,6 +79,20 @@ export default function LogMeal() {
   function updateIngredient(i, patch) {
     setIngredients(prev => prev.map((ing, idx) => idx === i ? { ...ing, ...patch } : ing));
   }
+  // Rescales this ingredient's macros by the ratio of the percent change —
+  // e.g. going from 100% to 50% halves them, and back to 100% restores the
+  // original amounts, since each change is relative to the current value
+  // rather than a fixed base that could drift with repeated edits.
+  function updatePercent(i, newPercentRaw) {
+    setIngredients(prev => prev.map((ing, idx) => {
+      if (idx !== i) return ing;
+      const newPercent = newPercentRaw === '' ? '' : Number(newPercentRaw);
+      if (newPercent === '' || !ing.percent || ing.percent <= 0) return { ...ing, percent: newPercent };
+      const ratio = newPercent / ing.percent;
+      const scale = (v) => v === '' || v == null ? v : Math.round(Number(v) * ratio * 10) / 10;
+      return { ...ing, percent: newPercent, calories: scale(ing.calories), protein: scale(ing.protein), carbs: scale(ing.carbs), fat: scale(ing.fat) };
+    }));
+  }
   function addIngredient() {
     setIngredients(prev => [...prev, blankIngredient()]);
   }
@@ -100,11 +114,13 @@ export default function LogMeal() {
         key: Math.random().toString(36).slice(2),
         name: it.portion ? `${it.item} (${it.portion})` : (it.item || ''),
         calories: it.calories ?? '', protein: it.protein ?? '', carbs: it.carbs ?? '', fat: it.fat ?? '',
+        percent: 100,
       })));
     } else {
       setIngredients([{
         key: Math.random().toString(36).slice(2),
         name: result.name || '', calories: result.calories ?? '', protein: result.protein ?? '', carbs: result.carbs ?? '', fat: result.fat ?? '',
+        percent: 100,
       }]);
     }
   }
@@ -186,6 +202,7 @@ export default function LogMeal() {
         protein: Math.round((labelResult.proteinPerServing || 0) * servings * 10) / 10 || '',
         carbs: Math.round((labelResult.carbsPerServing || 0) * servings * 10) / 10 || '',
         fat: Math.round((labelResult.fatPerServing || 0) * servings * 10) / 10 || '',
+        percent: 100,
       }];
     });
     setLabelResult(null);
@@ -217,7 +234,7 @@ export default function LogMeal() {
       const payload = {
         date, mealType, name, notes,
         calories: liveTotals.calories || null, protein: liveTotals.protein || null, carbs: liveTotals.carbs || null, fat: liveTotals.fat || null,
-        ingredients: cleanIngredients.map(({ key, ...rest }) => rest),
+        ingredients: cleanIngredients.map(({ key, percent, ...rest }) => rest),
       };
       if (editMeal) {
         await api.updateLoggedMeal(editMeal.id, payload);
@@ -360,11 +377,17 @@ export default function LogMeal() {
                   </button>
                 )}
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4, 1fr)',gap:'6px'}}>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4, 1fr)',gap:'6px',marginBottom:'8px'}}>
                 <input className="input" type="number" min="0" placeholder="Cal" value={ing.calories} onChange={e=>updateIngredient(i, { calories: e.target.value })} style={{fontSize:'13px',padding:'8px 10px'}}/>
                 <input className="input" type="number" min="0" placeholder="Protein" value={ing.protein} onChange={e=>updateIngredient(i, { protein: e.target.value })} style={{fontSize:'13px',padding:'8px 10px'}}/>
                 <input className="input" type="number" min="0" placeholder="Carbs" value={ing.carbs} onChange={e=>updateIngredient(i, { carbs: e.target.value })} style={{fontSize:'13px',padding:'8px 10px'}}/>
                 <input className="input" type="number" min="0" placeholder="Fat" value={ing.fat} onChange={e=>updateIngredient(i, { fat: e.target.value })} style={{fontSize:'13px',padding:'8px 10px'}}/>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                <label className="muted" style={{fontSize:'12px',flexShrink:0}}>How much did you eat?</label>
+                <input className="input" type="number" min="0" max="500" value={ing.percent}
+                  onChange={e=>updatePercent(i, e.target.value)} style={{fontSize:'13px',padding:'6px 8px',width:'70px'}}/>
+                <span className="muted" style={{fontSize:'12px'}}>%</span>
               </div>
             </div>
           ))}

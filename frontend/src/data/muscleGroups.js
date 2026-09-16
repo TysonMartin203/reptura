@@ -84,16 +84,20 @@ export function reorderExercisesByMuscleGroup(exercises) {
   withMeta.forEach(item => { (byMuscle[item.muscle] = byMuscle[item.muscle] || []).push(item); });
   Object.values(byMuscle).forEach(group => group.sort((a, b) => (b.compound - a.compound)));
 
-  // Round-robin across muscle groups so the same muscle is never picked twice
-  // in a row unless it's genuinely the only muscle left with items remaining.
+  // Repeatedly place the eligible muscle group (not the same as the last one
+  // placed) that still has the MOST exercises remaining. This "most-remaining
+  // first" rule is the standard optimal strategy for spacing out repeated
+  // items with no two alike adjacent (the same approach used for the classic
+  // "task scheduler" problem) — picking arbitrarily among eligible groups, by
+  // contrast, can leave a forced adjacency that was actually avoidable.
   const muscleKeys = Object.keys(byMuscle);
   const result = [];
   let lastMuscle = null;
   while (result.length < withMeta.length) {
-    // Prefer any group that isn't the same as the last placed muscle and still has items.
-    let pick = muscleKeys.find(m => m !== lastMuscle && byMuscle[m].length > 0);
-    if (!pick) pick = muscleKeys.find(m => byMuscle[m].length > 0); // no choice but to repeat
-    if (!pick) break;
+    const eligible = muscleKeys.filter(m => byMuscle[m].length > 0 && m !== lastMuscle);
+    const pool = eligible.length > 0 ? eligible : muscleKeys.filter(m => byMuscle[m].length > 0);
+    if (pool.length === 0) break;
+    const pick = pool.reduce((best, m) => byMuscle[m].length > byMuscle[best].length ? m : best, pool[0]);
     result.push(byMuscle[pick].shift().ex);
     lastMuscle = pick === 'FullBody' || pick === 'Other' ? null : pick; // full-body/other never "blocks" the next pick
   }

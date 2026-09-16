@@ -3,7 +3,7 @@ const auth = require('../middleware/auth');
 const {
   getTemplates, useTemplate,
   listPlans, getPlan, renamePlan, toggleFavorite, deletePlan, sharePlan,
-  generate, regenerate, reorderPlan, swapExercise, editExercise, exerciseInfo, createCustom,
+  generate, regenerate, swapExercise, editExercise, exerciseInfo, createCustom,
 } = require('../controllers/workoutplan.controller');
 
 router.use(auth);
@@ -17,7 +17,6 @@ router.put('/:id/favorite',    toggleFavorite);
 router.delete('/:id',          deletePlan);
 router.post('/:id/share',      sharePlan);
 router.post('/:id/regenerate', regenerate);
-router.post('/:id/reorder',    reorderPlan);
 router.post('/generate',       generate);
 router.post('/swap-exercise',  swapExercise);
 router.post('/edit-exercise',  editExercise);
