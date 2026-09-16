@@ -1,6 +1,5 @@
 import RestrictionPicker from './RestrictionPicker';
 import KitchenIllustration from './KitchenIllustration';
-import HandMeasureDiagram from './HandMeasureDiagram';
 
 const GOALS = ['Cut (Lose Fat)', 'Bulk (Gain Muscle)', 'Maintain', 'Recomp'];
 const ACTIVITY_LEVELS = [
@@ -103,31 +102,26 @@ export default function ProfileForm({ profile, setProfile }) {
       </div>
       <div className="field">
         <label className="label">Palm Width (optional)</label>
-        <div style={{display:'flex',gap:'14px',alignItems:'flex-start'}}>
-          <HandMeasureDiagram size={72}/>
-          <div style={{flex:1}}>
-            <div style={{display:'flex',gap:'8px',marginBottom:'8px'}}>
-              <input className="input" type="number" step="0.1" style={{flex:1}}
-                placeholder={profile.palmWidthUnit === 'cm' ? 'e.g. 8.9' : 'e.g. 3.5'}
-                value={
-                  profile.palmWidth
-                    ? (profile.palmWidthUnit === 'cm' ? (Number(profile.palmWidth) * 2.54).toFixed(1) : profile.palmWidth)
-                    : ''
-                }
-                onChange={e => {
-                  const raw = e.target.value;
-                  const inches = raw === '' ? '' : (profile.palmWidthUnit === 'cm' ? (Number(raw) / 2.54).toFixed(2) : raw);
-                  setProfile(p => ({ ...p, palmWidth: inches }));
-                }}
-              />
-              <div className="tab-row" style={{flexShrink:0,width:'auto'}}>
-                <button type="button" className={profile.palmWidthUnit !== 'cm' ? 'tab active' : 'tab'} onClick={()=>setProfile(p=>({...p,palmWidthUnit:'in'}))}>in</button>
-                <button type="button" className={profile.palmWidthUnit === 'cm' ? 'tab active' : 'tab'} onClick={()=>setProfile(p=>({...p,palmWidthUnit:'cm'}))}>cm</button>
-              </div>
-            </div>
-            <p className="muted" style={{fontSize:'12px'}}>Measured straight across your palm, not including your thumb (see the dashed line). Used to help the AI judge portion sizes when you scan a food photo with your hand in frame.</p>
+        <div style={{display:'flex',gap:'8px',marginBottom:'8px'}}>
+          <input className="input" type="number" step="0.1" style={{flex:1}}
+            placeholder={profile.palmWidthUnit === 'cm' ? 'e.g. 8.9' : 'e.g. 3.5'}
+            value={
+              profile.palmWidth
+                ? (profile.palmWidthUnit === 'cm' ? (Number(profile.palmWidth) * 2.54).toFixed(1) : profile.palmWidth)
+                : ''
+            }
+            onChange={e => {
+              const raw = e.target.value;
+              const inches = raw === '' ? '' : (profile.palmWidthUnit === 'cm' ? (Number(raw) / 2.54).toFixed(2) : raw);
+              setProfile(p => ({ ...p, palmWidth: inches }));
+            }}
+          />
+          <div className="tab-row" style={{flexShrink:0,width:'auto'}}>
+            <button type="button" className={profile.palmWidthUnit !== 'cm' ? 'tab active' : 'tab'} onClick={()=>setProfile(p=>({...p,palmWidthUnit:'in'}))}>in</button>
+            <button type="button" className={profile.palmWidthUnit === 'cm' ? 'tab active' : 'tab'} onClick={()=>setProfile(p=>({...p,palmWidthUnit:'cm'}))}>cm</button>
           </div>
         </div>
+        <p className="muted" style={{fontSize:'12px'}}>Measured straight across your palm, not including your thumb. See the illustration on the meal photo scan screen for exactly where to measure. Used to help the AI judge portion sizes when you scan a food photo with your hand in frame.</p>
       </div>
       <div className="field">
         <label className="label">Dietary Restrictions</label>

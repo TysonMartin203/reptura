@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import WorkoutForm from '../components/WorkoutForm';
+import WorkoutPhotos from '../components/WorkoutPhotos';
 import { ALL_CARDIO_NAMES } from '../data/exercises';
 
 function toFormInitial(workout) {
@@ -85,6 +86,7 @@ export default function EditWorkout() {
           onRemovePhoto={handleRemovePhoto}
         />
       </div>
+      {initial && <WorkoutPhotos workoutId={id} date={initial.date} />}
     </div>
   );
 }

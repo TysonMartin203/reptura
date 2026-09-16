@@ -7,39 +7,43 @@ import { today, formatDateStr } from '../dateUtils';
 export default function AllPhotos() {
   const [photos,    setPhotos]    = useState([]);
   const [date,      setDate]      = useState(today());
-  const [file,      setFile]      = useState(null);
-  const [preview,   setPreview]   = useState(null);
+  const [files,     setFiles]     = useState([]);
+  const [previews,  setPreviews]  = useState([]);
+  const [tagsInput, setTagsInput] = useState('');
   const [loading,   setLoading]   = useState(true);
   const [uploading, setUploading] = useState(false);
   const [compressing, setCompressing] = useState(false);
   const [error,     setError]     = useState('');
+  const [activeTag, setActiveTag] = useState(null);
   const fileRef = useRef();
 
   useEffect(() => {
     api.getPhotos().then(setPhotos).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  async function onFile(e) {
-    const f = e.target.files[0];
-    if (!f) return;
+  async function onFiles(e) {
+    const picked = Array.from(e.target.files || []);
+    if (!picked.length) return;
     setCompressing(true);
-    const compressed = await compressImage(f);
-    setFile(compressed);
-    setPreview(URL.createObjectURL(compressed));
+    const compressed = await Promise.all(picked.map(f => compressImage(f)));
+    setFiles(compressed);
+    setPreviews(compressed.map(f => URL.createObjectURL(f)));
     setCompressing(false);
   }
 
   async function upload(e) {
     e.preventDefault();
-    if (!file) return setError('Select a photo first');
+    if (!files.length) return setError('Select at least one photo first');
     setError(''); setUploading(true);
     try {
       const fd = new FormData();
-      fd.append('photo', file);
+      files.forEach(f => fd.append('photos', f));
       fd.append('photoDate', date);
-      const newPhoto = await api.uploadPhoto(fd);
-      setPhotos(p => [newPhoto, ...p]);
-      setFile(null); setPreview(null);
+      const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
+      if (tags.length) fd.append('tags', JSON.stringify(tags));
+      const newPhotos = await api.uploadPhoto(fd);
+      setPhotos(p => [...newPhotos, ...p]);
+      setFiles([]); setPreviews([]); setTagsInput('');
       if (fileRef.current) fileRef.current.value = '';
     } catch (err) {
       setError(err.message);
@@ -47,6 +51,11 @@ export default function AllPhotos() {
       setUploading(false);
     }
   }
+
+  // Every tag currently in use, for the filter bar — derived from what's
+  // actually on photos, not a separate managed list.
+  const allTags = [...new Set(photos.flatMap(p => p.tags || []))].sort();
+  const visiblePhotos = activeTag ? photos.filter(p => (p.tags || []).includes(activeTag)) : photos;
 
   if (loading) return <div className="page"><div className="spinner"/></div>;
 
@@ -64,27 +73,49 @@ export default function AllPhotos() {
             <input className="input" type="date" value={date} onChange={e => setDate(e.target.value)} required />
           </div>
           <div className="field">
-            <label className="label">Photo</label>
-            <input className="input" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" ref={fileRef} onChange={onFile} />
+            <label className="label">Photos</label>
+            <input className="input" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple ref={fileRef} onChange={onFiles} />
+            <p className="muted" style={{fontSize:'12px',marginTop:'4px'}}>Select multiple at once — handy for several angles from the same session.</p>
           </div>
-          {compressing && <p className="muted" style={{fontSize:'12px'}}>Optimizing photo…</p>}
-          {preview && !compressing && <img src={preview} alt="preview" className="photo-preview" />}
+          <div className="field">
+            <label className="label">Tags (optional)</label>
+            <input className="input" placeholder="e.g. bicep, back" value={tagsInput} onChange={e=>setTagsInput(e.target.value)} />
+            <p className="muted" style={{fontSize:'12px',marginTop:'4px'}}>Comma-separated. Applies to all photos in this upload. Use these later to filter progress by muscle group.</p>
+          </div>
+          {compressing && <p className="muted" style={{fontSize:'12px'}}>Optimizing photos…</p>}
+          {previews.length > 0 && !compressing && (
+            <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+              {previews.map((src, i) => <img key={i} src={src} alt="preview" className="photo-preview" style={{width:'80px',height:'80px',objectFit:'cover'}} />)}
+            </div>
+          )}
           {error && <p className="form-error">{error}</p>}
           <button className="btn-primary" type="submit" disabled={uploading || compressing}>
-            {uploading ? 'Uploading…' : 'Upload Photo'}
+            {uploading ? 'Uploading…' : files.length > 1 ? `Upload ${files.length} Photos` : 'Upload Photo'}
           </button>
         </form>
       </div>
 
-      {photos.length === 0
-        ? <p className="muted">No photos yet. Upload your first progress photo!</p>
+      {allTags.length > 0 && (
+        <div style={{display:'flex',flexWrap:'wrap',gap:'6px',marginBottom:'16px'}}>
+          <button className={activeTag===null ? 'tab active' : 'tab'} onClick={()=>setActiveTag(null)} style={{fontSize:'12px'}}>All</button>
+          {allTags.map(t => (
+            <button key={t} className={activeTag===t ? 'tab active' : 'tab'} onClick={()=>setActiveTag(t)} style={{fontSize:'12px'}}>{t}</button>
+          ))}
+        </div>
+      )}
+
+      {visiblePhotos.length === 0
+        ? <p className="muted">{activeTag ? `No photos tagged "${activeTag}" yet.` : 'No photos yet. Upload your first progress photo!'}</p>
         : (
           <div className="photo-grid">
-            {photos.map((ph, i) => (
+            {visiblePhotos.map((ph, i) => (
               <div key={ph.id} className="photo-card" style={{animationDelay:`${i*.05}s`}}>
                 <img src={api.fileUrl(ph.file_path)} alt={ph.photo_date} className="photo-img" />
                 <div className="photo-footer">
-                  <span>{formatDateStr(ph.photo_date)}</span>
+                  <div>
+                    <div>{formatDateStr(ph.photo_date)}</div>
+                    {ph.tags?.length > 0 && <div className="muted" style={{fontSize:'11px'}}>{ph.tags.join(', ')}</div>}
+                  </div>
                   <button className="btn-ghost-sm" onClick={() => {
                     api.deletePhoto(ph.id);
                     setPhotos(p => p.filter(x => x.id !== ph.id));

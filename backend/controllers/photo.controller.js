@@ -1,16 +1,26 @@
 const path = require('path');
 const fs   = require('fs');
-const { savePhoto, getPhotos, deletePhoto } = require('../models/photo.model');
+const { savePhoto, getPhotos, getPhotosForWorkout, deletePhoto } = require('../models/photo.model');
 const UPLOADS_DIR = require('../config/uploadsDir');
 
 async function upload(req, res) {
   try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const { photoDate } = req.body;
+    const files = req.files || [];
+    if (!files.length) return res.status(400).json({ error: 'No file uploaded' });
+    const { photoDate, workoutId } = req.body;
     if (!photoDate) return res.status(400).json({ error: 'photoDate required' });
-    const filePath = `/uploads/${req.file.filename}`;
-    const id = await savePhoto({ userId: req.userId, filePath, photoDate });
-    res.status(201).json({ id, filePath, photoDate });
+    let tags = null;
+    if (req.body.tags) {
+      try { tags = JSON.parse(req.body.tags); } catch { tags = String(req.body.tags).split(',').map(t => t.trim()).filter(Boolean); }
+    }
+
+    const saved = [];
+    for (const file of files) {
+      const filePath = `/uploads/${file.filename}`;
+      const id = await savePhoto({ userId: req.userId, filePath, photoDate, workoutId: workoutId || null, tags });
+      saved.push({ id, filePath, photoDate, workoutId: workoutId || null, tags });
+    }
+    res.status(201).json(saved);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -20,6 +30,16 @@ async function upload(req, res) {
 async function list(req, res) {
   try {
     const photos = await getPhotos(req.userId);
+    res.json(photos);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+async function listForWorkout(req, res) {
+  try {
+    const photos = await getPhotosForWorkout(req.params.workoutId, req.userId);
     res.json(photos);
   } catch (err) {
     console.error(err);
@@ -40,4 +60,4 @@ async function remove(req, res) {
   }
 }
 
-module.exports = { upload, list, remove };
+module.exports = { upload, list, listForWorkout, remove };

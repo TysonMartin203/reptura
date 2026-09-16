@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { today, formatDateStr } from '../dateUtils';
-import { IconTrash, IconCamera, IconWave, IconPlus } from '../components/Icons';
+import { IconTrash, IconCamera, IconPlus } from '../components/Icons';
+import HandMeasureDiagram from '../components/HandMeasureDiagram';
 import { compressImage } from '../compressImage';
 import VoiceNoteButton from '../components/VoiceNoteButton';
 import MacroProgressBar from '../components/MacroProgressBar';
@@ -229,9 +230,9 @@ export default function LogMeal() {
 
         {/* AI quick-add helpers */}
         <div className="card-form">
-          <div className="glass-card" style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'12px',border:'1px solid var(--accent)'}}>
-            <IconWave style={{width:'22px',height:'22px',color:'var(--accent)',flexShrink:0}}/>
-            <p style={{fontSize:'13px',fontWeight:'600',margin:0}}>Shoot from directly above with your open hand flat next to the food — top-down shots with a hand in frame give the most accurate size estimate.</p>
+          <div className="glass-card" style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'12px',border:'1px solid var(--accent)'}}>
+            <HandMeasureDiagram size={52}/>
+            <p style={{fontSize:'13px',fontWeight:'600',margin:0}}>Shoot from directly above with your open hand flat next to the food, palm facing up — top-down shots with a hand in frame give the most accurate size estimate. The dotted line shows where to measure your palm width in your Meal & Workout Profile.</p>
           </div>
           <input ref={fileRef} type="file" accept="image/*" onChange={scanPhoto} style={{display:'none'}} id="food-photo-input"/>
           <label htmlFor="food-photo-input" className="btn-secondary" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',cursor:'pointer',marginBottom:'10px'}}>

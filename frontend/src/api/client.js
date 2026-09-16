@@ -62,6 +62,7 @@ export const api = {
 
   uploadPhoto: (fd) => uploadFile('/api/photos', fd),
   getPhotos:   ()   => request('GET',    '/api/photos'),
+  getPhotosForWorkout: (workoutId) => request('GET', `/api/photos/workout/${workoutId}`),
   deletePhoto: (id) => request('DELETE', `/api/photos/${id}`),
 
   addFriend:    (b)   => request('POST', '/api/friends', b),

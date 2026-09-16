@@ -225,6 +225,7 @@ function CompeteTab() {
   const [period,     setPeriod]     = useState('week');     // week|month|year|lifetime, or daily|weekly for streak
   const [showNew,    setShowNew]    = useState(false);
   const [form, setForm] = useState({ title:'', type:'most_workouts', exercise:'', targetValue:'', startDate: today(), endDate: today(), visibility:'public' });
+  const [showTemplates, setShowTemplates] = useState(false);
   const [error, setError] = useState('');
   const [myVolume, setMyVolume] = useState(null);
 
@@ -363,14 +364,18 @@ function CompeteTab() {
 
                   {form.visibility === 'personal' && (
                     <div className="field">
-                      <label className="label">Quick pick a goal</label>
-                      <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
-                        {PERSONAL_TEMPLATES.map(t => (
-                          <button key={t.title} type="button" className="btn-ghost-sm" onClick={()=>applyTemplate(t)} style={{fontSize:'12px'}}>
-                            {t.title}
-                          </button>
-                        ))}
-                      </div>
+                      <button type="button" className="btn-secondary" onClick={()=>setShowTemplates(s=>!s)}>
+                        {showTemplates ? 'Hide Quick Picks' : 'Quick Pick a Goal'}
+                      </button>
+                      {showTemplates && (
+                        <div style={{display:'flex',flexWrap:'wrap',gap:'6px',marginTop:'10px'}}>
+                          {PERSONAL_TEMPLATES.map(t => (
+                            <button key={t.title} type="button" className="btn-ghost-sm" onClick={()=>{applyTemplate(t); setShowTemplates(false);}} style={{fontSize:'12px'}}>
+                              {t.title}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 

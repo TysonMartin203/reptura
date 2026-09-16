@@ -40,6 +40,7 @@ export const LIFTING_EXERCISES = [
 //   'distance' — duration + distance + unit, pace auto-calculated
 //   'laps'     — duration + lap count, pace auto-calculated (time/lap)
 //   'flights'  — duration + flights of stairs climbed, no pace
+//   'holes'    — duration + holes played, no pace
 //   'none'     — duration only, no natural pace/quantity metric
 //
 // calorieMode determines how calories are auto-calculated:
@@ -58,6 +59,7 @@ export const CARDIO_TYPES = {
   Rowing:          { metric: 'distance', calorieMode: 'intensity' },
   Swimming:        { metric: 'laps',     calorieMode: 'intensity' },
   'Stair Climber': { metric: 'flights',  calorieMode: 'intensity' },
+  'Disc Golf':     { metric: 'holes',    calorieMode: 'intensity' },
   Elliptical:      { metric: 'none',     calorieMode: 'intensity' },
   'Jump Rope':     { metric: 'none',     calorieMode: 'intensity' },
   HIIT:            { metric: 'none',     calorieMode: 'intensity' },
@@ -93,6 +95,12 @@ const CARDIO_INTENSITY_MET = {
   Rowing:          { Casual: 3.5, Moderate: 7.0, Competitive: 8.5 },
   Swimming:        { Casual: 6.0, Moderate: 7.0, Competitive: 10.0 },
   'Stair Climber': { Casual: 4.0, Moderate: 8.0, Competitive: 9.7 },
+  // Disc golf's exertion is really just walking between throws with pauses to
+  // play each hole, so this reuses walking-pace METs rather than inventing a
+  // sport-specific value: Casual = leisurely round with breaks, Moderate =
+  // steady walking pace, Competitive = fast-paced tournament round with
+  // little standing around.
+  'Disc Golf':     { Casual: 2.8, Moderate: 3.5, Competitive: 4.3 },
   Elliptical:      { Casual: 4.6, Moderate: 5.0, Competitive: 7.0 },
   'Jump Rope':     { Casual: 8.8, Moderate: 10.0, Competitive: 12.3 },
   HIIT:            { Casual: 5.5, Moderate: 7.3, Competitive: 8.8 },

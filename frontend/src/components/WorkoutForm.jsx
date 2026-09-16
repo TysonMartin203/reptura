@@ -145,7 +145,7 @@ function ExerciseCard({ ex, index, onChange, onRemove, canRemove, profileWeight 
     } else {
       update({
         exerciseName: name, customName: '', intensity: '',
-        distanceUnit: newMetric === 'laps' ? 'laps' : newMetric === 'flights' ? 'flights' : (user?.distanceUnit || 'mi'),
+        distanceUnit: newMetric === 'laps' ? 'laps' : newMetric === 'flights' ? 'flights' : newMetric === 'holes' ? 'holes' : (user?.distanceUnit || 'mi'),
         distance: '',
       });
     }
@@ -263,6 +263,13 @@ function ExerciseCard({ ex, index, onChange, onRemove, canRemove, profileWeight 
             <div className="field">
               <label className="label">Flights of Stairs</label>
               <input className="input" type="number" min="0" step="1" placeholder="15" value={ex.distance}
+                onChange={e => update({ distance: e.target.value })} />
+            </div>
+          )}
+          {!isSport && metric === 'holes' && (
+            <div className="field">
+              <label className="label">Holes Played</label>
+              <input className="input" type="number" min="0" step="1" placeholder="18" value={ex.distance}
                 onChange={e => update({ distance: e.target.value })} />
             </div>
           )}
