@@ -6,6 +6,7 @@ const { sendPushToUser } = require('../models/push.model');
 const { findById } = require('../models/user.model');
 const { areFriends } = require('../models/friend.model');
 const { EXERCISE_DESCRIPTIONS } = require('../data/exercise-descriptions');
+const { reorderExercisesByMuscleGroup } = require('../data/muscleGroups');
 
 function getClient() {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not set');
@@ -171,6 +172,9 @@ Return ONLY valid JSON, no markdown:
       let text = message.content[0].text.trim();
       text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
       const workout = JSON.parse(text);
+      // Guaranteed-correct exercise ordering regardless of what the AI produced —
+      // same exercises, just spaced so the same muscle isn't hit twice in a row.
+      workout.exercises = reorderExercisesByMuscleGroup(workout.exercises);
       return res.json({ workout });
     }
 
@@ -210,6 +214,11 @@ Return ONLY valid JSON, no markdown. Structure:
     let text = message.content[0].text.trim();
     text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
     const plan = JSON.parse(text);
+    if (Array.isArray(plan.days)) {
+      plan.days.forEach(day => {
+        if (Array.isArray(day.exercises)) day.exercises = reorderExercisesByMuscleGroup(day.exercises);
+      });
+    }
 
     const [result] = await pool.query(
       'INSERT INTO WorkoutPlans (user_id, name, plan) VALUES (?, ?, ?)',
@@ -224,6 +233,29 @@ Return ONLY valid JSON, no markdown. Structure:
 }
 
 // Rebuild an existing saved plan from updated weight/goal/notes.
+// Fixes exercise ordering on an already-saved plan with no AI call at all —
+// same exercises, just reshuffled with the same deterministic algorithm used
+// right after generation, for anyone whose plan predates that fix.
+async function reorderPlan(req, res) {
+  try {
+    const [[existing]] = await pool.query('SELECT * FROM WorkoutPlans WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (!existing) return res.status(404).json({ error: 'Plan not found' });
+    const plan = typeof existing.plan === 'string' ? JSON.parse(existing.plan) : existing.plan;
+    if (Array.isArray(plan.days)) {
+      plan.days.forEach(day => {
+        if (Array.isArray(day.exercises)) day.exercises = reorderExercisesByMuscleGroup(day.exercises);
+      });
+    } else if (Array.isArray(plan.exercises)) {
+      plan.exercises = reorderExercisesByMuscleGroup(plan.exercises);
+    }
+    await pool.query('UPDATE WorkoutPlans SET plan = ? WHERE id = ?', [JSON.stringify(plan), req.params.id]);
+    res.json({ plan });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
 async function regenerate(req, res) {
   try {
     const client = getClient();
@@ -271,6 +303,11 @@ Return ONLY valid JSON, no markdown. Same structure as before:
     let text = message.content[0].text.trim();
     text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
     const plan = JSON.parse(text);
+    if (Array.isArray(plan.days)) {
+      plan.days.forEach(day => {
+        if (Array.isArray(day.exercises)) day.exercises = reorderExercisesByMuscleGroup(day.exercises);
+      });
+    }
 
     await pool.query('UPDATE WorkoutPlans SET plan = ? WHERE id = ?', [JSON.stringify({ ...plan, format: 'week' }), req.params.id]);
 
@@ -414,5 +451,5 @@ async function createCustom(req, res) {
 module.exports = {
   getTemplates, useTemplate,
   listPlans, getPlan, renamePlan, toggleFavorite, deletePlan, sharePlan,
-  generate, regenerate, swapExercise, editExercise, exerciseInfo, createCustom,
+  generate, regenerate, reorderPlan, swapExercise, editExercise, exerciseInfo, createCustom,
 };

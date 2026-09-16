@@ -1,4 +1,4 @@
-const { logMeal, updateMeal, getMealsForDate, getMealHistory, deleteMeal, getDailyTotals, getCaloriesBurned } = require('../models/meallog.model');
+const { logMeal, updateMeal, getMealsForDate, getMealHistory, deleteMeal, getDailyTotals, getCaloriesBurned, deleteIngredient, moveIngredient } = require('../models/meallog.model');
 const { getProfile } = require('../models/profile.model');
 const Anthropic = require('@anthropic-ai/sdk');
 
@@ -257,4 +257,29 @@ Give your best reasonable estimate rather than refusing, even if the description
   }
 }
 
-module.exports = { create, update, listForDate, history, remove, recognize, recognizeLabel, parseVoice };
+async function removeIngredient(req, res) {
+  try {
+    const result = await deleteIngredient(req.params.id, req.userId, Number(req.params.index));
+    if (!result) return res.status(404).json({ error: 'Not found' });
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+async function relocateIngredient(req, res) {
+  try {
+    const { date, mealType } = req.body;
+    const MEAL_TYPES_LOCAL = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+    if (!date || !mealType || !MEAL_TYPES_LOCAL.includes(mealType)) return res.status(400).json({ error: 'date and a valid mealType are required' });
+    const result = await moveIngredient(req.params.id, req.userId, Number(req.params.index), date, mealType);
+    if (!result) return res.status(404).json({ error: 'Not found' });
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+module.exports = { create, update, listForDate, history, remove, recognize, recognizeLabel, parseVoice, removeIngredient, relocateIngredient };

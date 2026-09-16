@@ -123,4 +123,50 @@ async function getCaloriesBurned(userId, date) {
   return Number(row.burned);
 }
 
-module.exports = { logMeal, updateMeal, getMealsForDate, getMealHistory, deleteMeal, getDailyTotals, getCaloriesBurned };
+// Recomputes a meal's name/totals from whatever ingredients remain after
+// removing one. Deletes the whole meal if that was the last ingredient.
+async function deleteIngredient(mealId, userId, ingredientIndex) {
+  const [[meal]] = await pool.query('SELECT * FROM LoggedMeals WHERE id = ? AND user_id = ?', [mealId, userId]);
+  if (!meal) return null;
+  const ingredients = meal.ingredients ? (typeof meal.ingredients === 'string' ? JSON.parse(meal.ingredients) : meal.ingredients) : [];
+  if (ingredientIndex < 0 || ingredientIndex >= ingredients.length) return null;
+  const removed = ingredients[ingredientIndex];
+  const remaining = ingredients.filter((_, i) => i !== ingredientIndex);
+
+  if (remaining.length === 0) {
+    await pool.query('DELETE FROM LoggedMeals WHERE id = ?', [mealId]);
+    return { deleted: true };
+  }
+  const name = remaining.map(i => i.name).join(', ').slice(0, 500);
+  const sum = (field) => remaining.reduce((t, i) => t + (Number(i[field]) || 0), 0) || null;
+  await pool.query(
+    'UPDATE LoggedMeals SET name=?, calories=?, protein=?, carbs=?, fat=?, ingredients=? WHERE id=?',
+    [name, sum('calories'), sum('protein'), sum('carbs'), sum('fat'), JSON.stringify(remaining), mealId]
+  );
+  return { deleted: false, removed };
+}
+
+// Moves a single ingredient out of one meal and into another day/meal-type
+// slot — pulling it out uses the same recompute as deleteIngredient, and
+// placing it uses the same merge-aware logMeal as logging normally does, so
+// it combines with whatever's already in the target slot rather than
+// duplicating a separate entry there.
+async function moveIngredient(mealId, userId, ingredientIndex, newDate, newMealType) {
+  const [[meal]] = await pool.query('SELECT * FROM LoggedMeals WHERE id = ? AND user_id = ?', [mealId, userId]);
+  if (!meal) return null;
+  const ingredients = meal.ingredients ? (typeof meal.ingredients === 'string' ? JSON.parse(meal.ingredients) : meal.ingredients) : [];
+  if (ingredientIndex < 0 || ingredientIndex >= ingredients.length) return null;
+  const moved = ingredients[ingredientIndex];
+
+  const removal = await deleteIngredient(mealId, userId, ingredientIndex);
+  const newMealId = await logMeal({
+    userId, date: newDate, mealType: newMealType, name: moved.name,
+    calories: moved.calories, protein: moved.protein, carbs: moved.carbs, fat: moved.fat,
+    ingredients: [moved],
+  });
+  return { removedFrom: removal, movedTo: newMealId };
+}
+
+module.exports = { logMeal, updateMeal, getMealsForDate, getMealHistory, deleteMeal, getDailyTotals, getCaloriesBurned, deleteIngredient, moveIngredient };
+
+

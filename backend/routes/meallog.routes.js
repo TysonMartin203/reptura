@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const multer = require('multer');
 const auth = require('../middleware/auth');
-const { create, update, listForDate, history, remove, recognize, recognizeLabel, parseVoice } = require('../controllers/meallog.controller');
+const { create, update, listForDate, history, remove, recognize, recognizeLabel, parseVoice, removeIngredient, relocateIngredient } = require('../controllers/meallog.controller');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
@@ -14,5 +14,7 @@ router.post('/parse-voice', parseVoice);
 router.get('/',          listForDate);
 router.get('/history',   history);
 router.delete('/:id',    remove);
+router.delete('/:id/ingredients/:index',      removeIngredient);
+router.put('/:id/ingredients/:index/move',    relocateIngredient);
 
 module.exports = router;

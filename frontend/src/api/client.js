@@ -72,10 +72,13 @@ export const api = {
 
   sendMessage:     (b)   => request('POST', '/api/messages', b),
   getConversation: (fid) => request('GET',  `/api/messages/${fid}`),
+  getUnreadMessageSenders: () => request('GET', '/api/messages/unread'),
 
   listMealPlans:    ()     => request('GET',    '/api/meals'),
   logMeal:          (b)    => request('POST',   '/api/meal-logs', b),
   updateLoggedMeal: (id,b) => request('PUT',    `/api/meal-logs/${id}`, b),
+  deleteIngredient: (id, index) => request('DELETE', `/api/meal-logs/${id}/ingredients/${index}`),
+  moveIngredient: (id, index, b) => request('PUT', `/api/meal-logs/${id}/ingredients/${index}/move`, b),
   recognizeFood:    (fd)   => uploadFile('/api/meal-logs/recognize', fd),
   recognizeLabel:   (fd)   => uploadFile('/api/meal-logs/recognize-label', fd),
   parseMealVoice:   (b)    => request('POST', '/api/meal-logs/parse-voice', b),
@@ -145,6 +148,7 @@ export const api = {
   deleteWorkoutPlan:(id)           => request('DELETE',`/api/workout-plans/${id}`),
   shareWorkoutPlan: (id,b)         => request('POST', `/api/workout-plans/${id}/share`, b),
   regenerateWorkoutPlan: (id,b)    => request('POST', `/api/workout-plans/${id}/regenerate`, b),
+  reorderWorkoutPlan: (id)         => request('POST', `/api/workout-plans/${id}/reorder`, {}),
   generateWorkoutPlan: (b)         => request('POST', '/api/workout-plans/generate', b),
   createCustomWorkoutPlan: (b)     => request('POST', '/api/workout-plans/custom', b),
   swapPlanExercise: (b)            => request('POST', '/api/workout-plans/swap-exercise', b),

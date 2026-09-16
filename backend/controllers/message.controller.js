@@ -1,4 +1,4 @@
-const { sendMessage, getConversation } = require('../models/message.model');
+const { sendMessage, getConversation, getUnreadSenderIds } = require('../models/message.model');
 const { sendPushToUser } = require('../models/push.model');
 const { findById } = require('../models/user.model');
 const pool = require('../config/db');
@@ -37,4 +37,14 @@ async function conversation(req, res) {
   }
 }
 
-module.exports = { send, conversation };
+async function unread(req, res) {
+  try {
+    const senderIds = await getUnreadSenderIds(req.userId);
+    res.json(senderIds);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+module.exports = { send, conversation, unread };

@@ -26,12 +26,14 @@ function FriendsTab() {
   const [pushStatus, setPushStatus] = useState('unknown');
   const [enabling,   setEnabling]   = useState(false);
   const [showShare,  setShowShare]  = useState(false);
+  const [unreadIds, setUnreadIds] = useState([]);
   const [recommended, setRecommended] = useState(null);
   const [loadingRecommended, setLoadingRecommended] = useState(false);
   const [sentTo, setSentTo] = useState({});
 
   useEffect(() => {
     api.getFriends().then(setFriends).catch(console.error).finally(() => setLoading(false));
+    api.getUnreadMessageSenders().then(setUnreadIds).catch(console.error);
     getPushStatus().then(setPushStatus).catch(() => setPushStatus('unsupported'));
   }, []);
 
@@ -69,6 +71,7 @@ function FriendsTab() {
     const messages = await api.getConversation(friend.id);
     setConvo({ friend, messages });
     setShowShare(false);
+    setUnreadIds(ids => ids.filter(id => id !== friend.id));
   }
 
   async function sendMsg(e) {
@@ -211,7 +214,12 @@ function FriendsTab() {
               <button className="btn-ghost-sm" style={{marginRight:'6px'}} onClick={()=>buzz(f.id)} disabled={buzzed[f.id]==='sending'}>
                 {buzzed[f.id]==='sent' ? <>Buzzed! <IconLightning style={{width:'12px',height:'12px',display:'inline'}}/></> : buzzed[f.id]==='sending' ? '…' : <><IconLightning style={{width:'12px',height:'12px',display:'inline'}}/> Buzz</>}
               </button>
-              <button className="btn-ghost-sm" onClick={()=>openConvo(f)}>Messages</button>
+              <button className="btn-ghost-sm" onClick={()=>openConvo(f)} style={{position:'relative'}}>
+                Messages
+                {unreadIds.includes(f.id) && (
+                  <span style={{position:'absolute',top:'-3px',right:'-3px',width:'9px',height:'9px',borderRadius:'50%',background:'var(--accent)',border:'2px solid var(--bg)'}}/>
+                )}
+              </button>
             </div>
           ))
         }

@@ -11,7 +11,12 @@ async function sendMessage({ senderId, receiverId, message }) {
   return result.insertId;
 }
 
+// Opening a conversation marks every message the other person sent you as read.
 async function getConversation(userId1, userId2) {
+  await pool.query(
+    'UPDATE Messages SET read_at = NOW() WHERE sender_id = ? AND receiver_id = ? AND read_at IS NULL',
+    [userId2, userId1]
+  );
   const [rows] = await pool.query(
     `SELECT m.*, u.username AS sender_username
      FROM Messages m
@@ -24,4 +29,14 @@ async function getConversation(userId1, userId2) {
   return rows;
 }
 
-module.exports = { sendMessage, getConversation };
+// Which of your friends have sent you at least one message you haven't
+// opened yet — used to show a small indicator in the Friends list.
+async function getUnreadSenderIds(userId) {
+  const [rows] = await pool.query(
+    'SELECT DISTINCT sender_id FROM Messages WHERE receiver_id = ? AND read_at IS NULL',
+    [userId]
+  );
+  return rows.map(r => r.sender_id);
+}
+
+module.exports = { sendMessage, getConversation, getUnreadSenderIds };

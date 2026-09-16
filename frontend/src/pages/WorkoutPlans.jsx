@@ -151,6 +151,7 @@ function PlanDetail({ planId, onBack, onUpdate }) {
   const [showRegen, setShowRegen] = useState(false);
   const [regenProfile, setRegenProfile] = useState({ weight:'', goalWeight:'', goal:GOALS[2], timeline:'', notes:'' });
   const [regenerating, setRegenerating] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const [regenError, setRegenError] = useState('');
 
   useEffect(() => {
@@ -218,6 +219,15 @@ function PlanDetail({ planId, onBack, onUpdate }) {
     } catch (err) { setRegenError(err.message); }
     finally { setRegenerating(false); }
   }
+  async function doReorder() {
+    setReordering(true);
+    try {
+      await api.reorderWorkoutPlan(planId);
+      const updated = await api.getWorkoutPlan(planId);
+      setData(updated);
+    } catch (err) { setRegenError(err.message); }
+    finally { setReordering(false); }
+  }
 
   if (loading) return <div className="page"><div className="spinner"/></div>;
   if (!data) return null;
@@ -238,6 +248,9 @@ function PlanDetail({ planId, onBack, onUpdate }) {
         ) : (
           <>
             <h2 className="page-title" style={{marginBottom:0,flex:1}}>{data.name}</h2>
+            <button className="btn-ghost-sm" onClick={doReorder} disabled={reordering} title="Reorders the exercises you already have so the same muscle isn't worked twice in a row — never changes which exercises are in the plan.">
+              {reordering ? 'Fixing…' : 'Fix Exercise Order'}
+            </button>
             <button className="btn-ghost-sm" onClick={openRegenerate}>Regenerate</button>
             <button className="btn-ghost-sm" onClick={openShare}>Share</button>
             <button onClick={()=>setEditing(true)} style={{color:'var(--muted)',background:'none',border:'none',cursor:'pointer'}}><IconEdit style={{width:'16px',height:'16px'}}/></button>
