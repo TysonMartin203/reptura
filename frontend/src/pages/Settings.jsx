@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
-import { IconEdit, IconChevron, IconCheck } from '../components/Icons';
+import { IconEdit, IconCheck, IconGear } from '../components/Icons';
 import AchievementIcon from '../components/AchievementIcon';
 import { compressImage } from '../compressImage';
 
@@ -28,13 +28,6 @@ const HOW_TO = {
   has_avatar:      'Upload a profile photo by tapping your avatar at the top of this page.',
 };
 
-const FEED_TYPES = [
-  { key: 'workout',   label: 'Workouts',   meta: 'When you or a friend logs a workout' },
-  { key: 'pr',        label: 'PRs',        meta: 'When you or a friend sets a personal record' },
-  { key: 'meal',      label: 'Meals',      meta: 'When you or a friend logs a meal' },
-  { key: 'challenge', label: 'Challenges', meta: 'When you or a friend starts or joins a challenge' },
-];
-
 export default function Settings() {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
@@ -49,13 +42,6 @@ export default function Settings() {
   const [bio,          setBio]          = useState(user?.bio || '');
   const [savingBio,    setSavingBio]    = useState(false);
 
-  // Feed preferences
-  const [feedTypes, setFeedTypesState] = useState(null); // null = all types shown
-  const [friends, setFriends] = useState([]);
-  const [mutedIds, setMutedIds] = useState(new Set());
-  const [feedPrefsLoading, setFeedPrefsLoading] = useState(true);
-  const [showFriendFeedList, setShowFriendFeedList] = useState(false);
-
   const initials  = user?.username?.slice(0,2).toUpperCase() || 'FT';
   const avatarUrl = user?.avatarUrl ? api.fileUrl(user.avatarUrl) : null;
 
@@ -64,15 +50,6 @@ export default function Settings() {
       .then(d => setAchievements(d.achievements || []))
       .catch(() => {})
       .finally(() => setLoadingAch(false));
-
-    Promise.all([api.getFeedPrefs(), api.getFriends()])
-      .then(([prefs, friendList]) => {
-        setFeedTypesState(prefs.feedTypes); // null or array
-        setMutedIds(new Set((prefs.mutedFriends || []).map(f => f.id)));
-        setFriends(friendList || []);
-      })
-      .catch(() => {})
-      .finally(() => setFeedPrefsLoading(false));
   }, []);
 
   async function onAvatarChange(e) {
@@ -98,32 +75,6 @@ export default function Settings() {
       setSuccess('Bio updated!');
     } catch (err) { setError(err.message); }
     finally { setSavingBio(false); }
-  }
-
-  // All types on by default (feedTypes === null); toggling one off when
-  // starting from "all" means: start from the full set minus this one.
-  const allTypeKeys = FEED_TYPES.map(t => t.key);
-  const activeTypes = feedTypes === null ? allTypeKeys : feedTypes;
-  async function toggleFeedType(key) {
-    const next = activeTypes.includes(key) ? activeTypes.filter(k => k !== key) : [...activeTypes, key];
-    // If everything ends up selected, store as "all" (null) rather than an
-    // explicit list, matching how the backend treats an empty/full list.
-    const toSave = next.length === allTypeKeys.length ? [] : next;
-    setFeedTypesState(next.length === allTypeKeys.length ? null : next);
-    try { await api.updateFeedTypes(toSave); } catch (err) { setError(err.message); }
-  }
-
-  async function toggleFriendInFeed(friendId) {
-    const isMuted = mutedIds.has(friendId);
-    setMutedIds(prev => {
-      const next = new Set(prev);
-      isMuted ? next.delete(friendId) : next.add(friendId);
-      return next;
-    });
-    try {
-      if (isMuted) await api.unmuteFriendFeed(friendId);
-      else await api.muteFriendFeed(friendId);
-    } catch (err) { setError(err.message); }
   }
 
   const unlocked = achievements.filter(a => a.unlocked);
@@ -156,10 +107,10 @@ export default function Settings() {
       </div>
 
       {/* Settings button — everything else (account, appearance, notifications,
-          meal/workout profile, units, admin, logout) lives on its own page now. */}
+          feed preferences, meal/workout profile, units, admin, logout) lives on its own page now. */}
       <button className="btn-secondary" style={{width:'100%',marginBottom:'20px',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}
         onClick={()=>navigate('/account')}>
-        ⚙️ Settings
+        <IconGear style={{width:'16px',height:'16px'}}/> Settings
       </button>
 
       {/* Bio */}
@@ -172,48 +123,6 @@ export default function Settings() {
         <button className="btn-ghost-sm" style={{marginTop:'8px'}} onClick={saveBio} disabled={savingBio}>
           {savingBio ? 'Saving…' : 'Save Bio'}
         </button>
-      </div>
-
-      {/* Feed Preferences */}
-      <div className="section">
-        <div className="section-header">
-          <span className="section-title">Feed Preferences</span>
-        </div>
-        <p className="muted" style={{fontSize:'12px',marginBottom:'10px'}}>Choose what shows up in your feed, from you and your friends.</p>
-        {feedPrefsLoading ? <div className="spinner" style={{margin:'10px auto'}}/> : (
-          <>
-            {FEED_TYPES.map(t => (
-              <label key={t.key} className="list-item" style={{cursor:'pointer'}}>
-                <div style={{flex:1}}>
-                  <div className="item-main">{t.label}</div>
-                  <div className="item-meta">{t.meta}</div>
-                </div>
-                <input type="checkbox" checked={activeTypes.includes(t.key)} onChange={()=>toggleFeedType(t.key)}
-                  style={{width:'18px',height:'18px',accentColor:'var(--accent)'}} />
-              </label>
-            ))}
-
-            <div className="list-item clickable" style={{cursor:'pointer',marginTop:'8px'}} onClick={()=>setShowFriendFeedList(s=>!s)}>
-              <div style={{flex:1}}>
-                <div className="item-main">Friends in your feed</div>
-                <div className="item-meta">{mutedIds.size > 0 ? `${mutedIds.size} friend${mutedIds.size===1?'':'s'} hidden` : 'All friends shown'}</div>
-              </div>
-              <IconChevron style={{width:'16px',height:'16px',color:'var(--muted)',transform: showFriendFeedList ? 'rotate(90deg)' : 'none'}}/>
-            </div>
-            {showFriendFeedList && (
-              friends.length === 0 ? <p className="muted" style={{fontSize:'12px',padding:'8px 0'}}>No friends yet.</p> :
-              friends.map(f => (
-                <label key={f.id} className="list-item" style={{cursor:'pointer'}}>
-                  <div style={{flex:1}}>
-                    <div className="item-main">{f.username}</div>
-                  </div>
-                  <input type="checkbox" checked={!mutedIds.has(f.id)} onChange={()=>toggleFriendInFeed(f.id)}
-                    style={{width:'18px',height:'18px',accentColor:'var(--accent)'}} />
-                </label>
-              ))
-            )}
-          </>
-        )}
       </div>
 
       {/* Achievements */}

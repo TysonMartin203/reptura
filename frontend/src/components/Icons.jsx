@@ -32,6 +32,9 @@ export function IconEdit({ className, style }) {
 export function IconChevron({ className, style }) {
   return <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>;
 }
+export function IconGear({ className, style }) {
+  return <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 12a7.4 7.4 0 00-.1-1.2l2-1.6-2-3.4-2.4.6a7.5 7.5 0 00-2-1.2L14.4 2.8h-4.8L9.1 5.2a7.5 7.5 0 00-2 1.2l-2.4-.6-2 3.4 2 1.6a7.4 7.4 0 000 2.4l-2 1.6 2 3.4 2.4-.6a7.5 7.5 0 002 1.2l.5 2.4h4.8l.5-2.4a7.5 7.5 0 002-1.2l2.4.6 2-3.4-2-1.6c.07-.4.1-.8.1-1.2z"/></svg>;
+}
 export function IconSparkle({ className, style }) {
   return <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>;
 }

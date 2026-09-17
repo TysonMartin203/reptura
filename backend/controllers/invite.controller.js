@@ -2,6 +2,7 @@ const { createInvite, getInvites, respondInvite } = require('../models/invite.mo
 const { createNotification } = require('../models/notification.model');
 const { sendPushToUser } = require('../models/push.model');
 const { findById } = require('../models/user.model');
+const pool = require('../config/db');
 
 async function create(req, res) {
   try {
@@ -17,11 +18,14 @@ async function create(req, res) {
       body: `${when}${message ? ' — ' + message : ''}`,
       data: { inviteId: id },
     });
-    await sendPushToUser(receiverId, {
-      title: 'Train-together invite',
-      body: `${sender?.username || 'A friend'} wants to lift ${when}`,
-      data: { type: 'train_invite', inviteId: id },
-    });
+    const [[receiver]] = await pool.query('SELECT notify_invites FROM Users WHERE id = ?', [receiverId]);
+    if (receiver?.notify_invites !== 0) {
+      await sendPushToUser(receiverId, {
+        title: 'Train-together invite',
+        body: `${sender?.username || 'A friend'} wants to lift ${when}`,
+        data: { type: 'train_invite', inviteId: id },
+      });
+    }
 
     res.status(201).json({ id });
   } catch (err) {

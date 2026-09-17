@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { formatDateStr } from '../dateUtils';
 import { formatCompact } from '../format';
 import { displayWeight, weightUnitLabel } from '../units';
+import { closestComparison } from '../weightComparisons';
 import ProgressChart from '../components/ProgressChart';
 import FireIcon from '../components/StreakFire';
 import { IconChevron, IconCamera } from '../components/Icons';
@@ -23,6 +25,7 @@ export default function ProgressPhotos() {
   const [stats, setStats] = useState({ workouts: 0, prs: 0, streak: 0, volume: 0 });
   const [showCompare, setShowCompare] = useState(false);
   const [showStrength, setShowStrength] = useState(false);
+  const [showVolumeFact, setShowVolumeFact] = useState(false);
 
   useEffect(() => {
     api.getPhotos().then(setPhotos).catch(console.error).finally(() => setLoadingPhotos(false));
@@ -71,11 +74,31 @@ export default function ProgressPhotos() {
           </span>
           <span className="stat-label">Day Streak</span>
         </div>
-        <div className="stat-card">
+        <div className="stat-card" style={{cursor:'pointer'}} onClick={()=>setShowVolumeFact(true)}>
           <span className="stat-num">{formatCompact(displayWeight(stats.volume, user?.weightUnit))}</span>
           <span className="stat-label">Total {weightUnitLabel(user?.weightUnit)} Lifted</span>
         </div>
       </div>
+
+      {showVolumeFact && createPortal(
+        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,.55)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}} onClick={()=>setShowVolumeFact(false)}>
+          <div style={{width:'100%',maxWidth:'360px',borderRadius:'16px',background:'var(--surface)',padding:'22px 20px',boxShadow:'var(--shadow-lg)',textAlign:'center'}} onClick={e=>e.stopPropagation()}>
+            <h3 style={{marginBottom:'10px'}}>Total Weight Lifted</h3>
+            {(() => {
+              const ref = closestComparison(stats.volume);
+              return ref ? (
+                <p className="muted" style={{fontSize:'14px',marginBottom:'18px',lineHeight:'1.5'}}>
+                  You've lifted {formatCompact(displayWeight(stats.volume, user?.weightUnit))} {weightUnitLabel(user?.weightUnit)} all-time — that's about the same as {ref.name}!
+                </p>
+              ) : (
+                <p className="muted" style={{fontSize:'14px',marginBottom:'18px'}}>Log a few workouts to see a fun comparison here.</p>
+              );
+            })()}
+            <button className="btn-primary" style={{width:'100%'}} onClick={()=>setShowVolumeFact(false)}>Got It</button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Photos preview */}
       <section className="section">
