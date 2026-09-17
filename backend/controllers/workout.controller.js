@@ -11,7 +11,14 @@ const {
 
 function getClient() {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not set');
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    // Raise the SDK's default retry ceiling (2) for 429/5xx and cap how
+    // long a single call can hang, so bursts of concurrent users don't
+    // fail fast under load.
+    maxRetries: 4,
+    timeout: 30_000,
+  });
 }
 
 function parsePayload(req) {

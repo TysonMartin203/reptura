@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
 import { compressImage } from '../compressImage';
+import TagAutocompleteInput from './TagAutocompleteInput';
+import { PHOTO_TAG_SUGGESTIONS } from '../data/photoTags';
 
 export default function WorkoutPhotos({ workoutId, date }) {
   const [photos, setPhotos] = useState([]);
@@ -58,7 +60,7 @@ export default function WorkoutPhotos({ workoutId, date }) {
     <div className="card-form" style={{marginTop:'16px'}}>
       <div style={{fontWeight:'700',fontSize:'14px',marginBottom:'10px'}}>Progress Photos for This Workout</div>
       <p className="muted" style={{fontSize:'12px',marginBottom:'10px'}}>
-        These stay private — never visible to friends, even in Feed or Social. Add several at once and tag them (e.g. "bicep", "tricep") to track progress in specific areas later.
+        These stay private — never visible to friends, even in Feed or Social. Add several at once and tag them (e.g. "Back & Biceps", "Triceps") to track progress in specific areas later.
       </p>
 
       {loading ? <div className="spinner"/> : photos.length > 0 && (
@@ -86,7 +88,7 @@ export default function WorkoutPhotos({ workoutId, date }) {
         </div>
       )}
       <div className="field" style={{marginBottom:'10px'}}>
-        <input className="input" placeholder="Tags, e.g. bicep, tricep" value={tagsInput} onChange={e=>setTagsInput(e.target.value)}/>
+        <TagAutocompleteInput value={tagsInput} onChange={setTagsInput} suggestions={PHOTO_TAG_SUGGESTIONS} placeholder="e.g. Chest & Shoulders, Triceps" className="input" />
       </div>
       {error && <p className="form-error">{error}</p>}
       <button type="button" className="btn-secondary" onClick={upload} disabled={uploading || compressing || !files.length}>

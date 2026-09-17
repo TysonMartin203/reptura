@@ -4,7 +4,31 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 function getClient() {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not set');
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    // The SDK already retries 429/5xx with exponential backoff honoring the
+    // API's retry-after header — we just raise the ceiling a bit above the
+    // default (2) since a meal-photo scan is a one-shot user action worth
+    // fighting harder for rather than failing fast, and cap how long a
+    // single request can hang so a stuck call doesn't tie up the server.
+    maxRetries: 4,
+    timeout: 30_000,
+  });
+}
+
+// After the SDK's own retries are exhausted, this turns a raw rate-limit /
+// overload error into a message users can actually act on, and flags it as
+// a 429 so the frontend could special-case it later (e.g. a "try again in a
+// moment" toast) instead of treating it like every other failure.
+function friendlyAiError(err, fallbackPrefix) {
+  const status = err?.status || err?.response?.status;
+  if (status === 429) {
+    return { status: 429, message: "We're getting a lot of requests right now — please try again in a moment." };
+  }
+  if (status === 529 || status === 503) {
+    return { status: 503, message: "The AI service is temporarily overloaded — please try again shortly." };
+  }
+  return { status: 500, message: `${fallbackPrefix}${err.message}` };
 }
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -171,7 +195,8 @@ Give your best reasonable estimate rather than refusing, even when uncertain —
     res.json(result);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Could not read that photo: ' + err.message });
+    const { status: errStatus, message: errMessage } = friendlyAiError(err, 'Could not read that photo: ');
+    res.status(errStatus).json({ error: errMessage });
   }
 }
 
@@ -221,7 +246,8 @@ If any value isn't legible or isn't on the label, use your best judgment for a s
     res.json(result);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Could not read that label: ' + err.message });
+    const { status: errStatus, message: errMessage } = friendlyAiError(err, 'Could not read that label: ');
+    res.status(errStatus).json({ error: errMessage });
   }
 }
 
@@ -262,7 +288,8 @@ Give your best reasonable estimate rather than refusing, even if the description
     res.json(JSON.parse(text));
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Could not parse that: ' + err.message });
+    const { status: errStatus, message: errMessage } = friendlyAiError(err, 'Could not parse that: ');
+    res.status(errStatus).json({ error: errMessage });
   }
 }
 
