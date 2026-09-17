@@ -34,4 +34,12 @@ async function deletePhoto(id, userId) {
   return rows[0].file_path;
 }
 
-module.exports = { savePhoto, getPhotos, getPhotosForWorkout, deletePhoto };
+async function updateTags(id, userId, tags) {
+  const [result] = await pool.query(
+    'UPDATE ProgressPhotos SET tags = ? WHERE id = ? AND user_id = ?',
+    [tags && tags.length ? JSON.stringify(tags) : null, id, userId]
+  );
+  return result.affectedRows > 0;
+}
+
+module.exports = { savePhoto, getPhotos, getPhotosForWorkout, deletePhoto, updateTags };

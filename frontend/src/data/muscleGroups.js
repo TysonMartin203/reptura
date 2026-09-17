@@ -29,7 +29,7 @@ export const MUSCLE_GROUPS = {
   'Step Up': ['Quads', true], 'Walking Lunge': ['Quads', true], 'Bodyweight Squat': ['Quads', true],
   'Jump Squat': ['Quads', true], 'Pistol Squat': ['Quads', true],
   // Hamstrings
-  'Romanian Deadlift': ['Hamstrings', true], 'Leg Curl': ['Hamstrings', false], 'Seated Leg Curl Machine': ['Hamstrings', false],
+  'Romanian Deadlift': ['Hamstrings', true], 'Leg Curl': ['Hamstrings', false], 'Seated Leg Curl Machine': ['Hamstrings', false], 'Prone Leg Curl Machine': ['Hamstrings', false],
   'Nordic Curl': ['Hamstrings', false],
   // Glutes
   'Hip Thrust': ['Glutes', true], 'Glute Bridge': ['Glutes', true], 'Glute Kickback Machine': ['Glutes', false],

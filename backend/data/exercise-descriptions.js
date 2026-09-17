@@ -48,6 +48,7 @@ const EXERCISE_DESCRIPTIONS = {
   'Romanian Deadlift': 'Targets the hamstrings and glutes. Keep your legs mostly straight and hinge at the hips, lowering the bar along your legs.',
   'Leg Curl': 'Isolates the hamstrings, typically performed lying or seated on a machine, curling a pad toward your glutes.',
   'Seated Leg Curl Machine': 'A seated version of the leg curl that isolates the hamstrings with strict form.',
+  'Prone Leg Curl Machine': 'Performed lying face-down on a bench, curling a pad toward your glutes — isolates the hamstrings while the hip stays fixed against the pad.',
   'Leg Extension': 'Isolates the quads. Sit on a machine and extend your legs against resistance until straight.',
   'Hip Thrust': 'Targets the glutes directly. With your upper back on a bench, drive your hips up while squeezing your glutes at the top.',
   'Calf Raise': 'Targets the calves. Rise up onto your toes against resistance, then lower with control.',

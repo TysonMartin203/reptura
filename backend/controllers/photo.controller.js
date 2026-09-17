@@ -1,6 +1,6 @@
 const path = require('path');
 const fs   = require('fs');
-const { savePhoto, getPhotos, getPhotosForWorkout, deletePhoto } = require('../models/photo.model');
+const { savePhoto, getPhotos, getPhotosForWorkout, deletePhoto, updateTags } = require('../models/photo.model');
 const UPLOADS_DIR = require('../config/uploadsDir');
 
 async function upload(req, res) {
@@ -60,4 +60,20 @@ async function remove(req, res) {
   }
 }
 
-module.exports = { upload, list, listForWorkout, remove };
+async function updateTagsHandler(req, res) {
+  try {
+    let tags = req.body.tags;
+    if (typeof tags === 'string') {
+      try { tags = JSON.parse(tags); } catch { tags = tags.split(',').map(t => t.trim()).filter(Boolean); }
+    }
+    if (!Array.isArray(tags)) tags = [];
+    const ok = await updateTags(req.params.id, req.userId, tags);
+    if (!ok) return res.status(404).json({ error: 'Not found' });
+    res.json({ success: true, tags });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+module.exports = { upload, list, listForWorkout, remove, updateTagsHandler };

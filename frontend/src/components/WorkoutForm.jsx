@@ -409,6 +409,17 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
 
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [voiceError, setVoiceError] = useState('');
+  const [saunaMinutes, setSaunaMinutes] = useState('');
+  function addSauna() {
+    const minutes = Number(saunaMinutes);
+    if (!minutes || minutes <= 0) return;
+    setExercises(prev => [...prev, {
+      category: 'cardio', exerciseName: 'Sauna', customName: '', notes: '',
+      durationMinutes: String(minutes), distance: '', distanceUnit: user?.distanceUnit || 'mi',
+      calories: '', avgHeartRate: '', pace: '', intensity: 'Moderate',
+    }]);
+    setSaunaMinutes('');
+  }
   // Loose match so "lateral raises" (spoken plural) matches "Lateral Raise" (canonical singular),
   // and similarly for any other minor spoken variation.
   function normalizeExerciseName(s) {
@@ -613,6 +624,12 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
       ))}
 
       <button type="button" className="btn-secondary" onClick={addExercise}>+ Add Exercise</button>
+
+      <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+        <input className="input" type="number" min="1" placeholder="Minutes" value={saunaMinutes}
+          onChange={e=>setSaunaMinutes(e.target.value)} style={{maxWidth:'110px'}} />
+        <button type="button" className="btn-ghost-sm" onClick={addSauna}>+ Add Sauna Session</button>
+      </div>
 
       <div className="field">
         <label className="label" style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>

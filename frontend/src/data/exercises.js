@@ -12,7 +12,7 @@ export const LIFTING_EXERCISES = [
   'Landmine Press',
   // Legs
   'Squat','Front Squat','Hack Squat','Leg Press','Vertical Leg Press','Lunge','Bulgarian Split Squat',
-  'Romanian Deadlift','Leg Curl','Seated Leg Curl Machine','Leg Extension','Hip Thrust','Calf Raise',
+  'Romanian Deadlift','Leg Curl','Seated Leg Curl Machine','Prone Leg Curl Machine','Leg Extension','Hip Thrust','Calf Raise',
   'Standing Calf Raise Machine','Seated Calf Raise Machine',
   'Sumo Deadlift','Step Up','Glute Bridge','Glute Kickback Machine',
   'Hip Abductor (Outer Thigh)','Hip Adductor (Inner Thigh)','Goblet Squat','Box Squat','Nordic Curl',
@@ -63,6 +63,7 @@ export const CARDIO_TYPES = {
   Elliptical:      { metric: 'none',     calorieMode: 'intensity' },
   'Jump Rope':     { metric: 'none',     calorieMode: 'intensity' },
   HIIT:            { metric: 'none',     calorieMode: 'intensity' },
+  Sauna:           { metric: 'none',     calorieMode: 'intensity' },
   Other:           { metric: 'distance', calorieMode: 'intensity' },
 };
 export const CARDIO_ACTIVITIES = Object.keys(CARDIO_TYPES);
@@ -104,6 +105,9 @@ const CARDIO_INTENSITY_MET = {
   Elliptical:      { Casual: 4.6, Moderate: 5.0, Competitive: 7.0 },
   'Jump Rope':     { Casual: 8.8, Moderate: 10.0, Competitive: 12.3 },
   HIIT:            { Casual: 5.5, Moderate: 7.3, Competitive: 8.8 },
+  // Sauna is passive heat exposure, not exertion — MET values stay low across
+  // the board and "Competitive" here just means a hotter/longer session.
+  Sauna:           { Casual: 1.0, Moderate: 1.2, Competitive: 1.5 },
   Other:           { Casual: 4.0, Moderate: 6.0, Competitive: 8.0 },
 };
 

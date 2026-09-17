@@ -8,6 +8,7 @@ import { displayWeight, weightUnitLabel } from '../units';
 import ProgressChart from '../components/ProgressChart';
 import FireIcon from '../components/StreakFire';
 import { IconChevron, IconCamera } from '../components/Icons';
+import PersonalGoals from '../components/PersonalGoals';
 
 export default function ProgressPhotos() {
   const { user } = useAuth();
@@ -21,6 +22,7 @@ export default function ProgressPhotos() {
 
   const [stats, setStats] = useState({ workouts: 0, prs: 0, streak: 0, volume: 0 });
   const [showCompare, setShowCompare] = useState(false);
+  const [showStrength, setShowStrength] = useState(false);
 
   useEffect(() => {
     api.getPhotos().then(setPhotos).catch(console.error).finally(() => setLoadingPhotos(false));
@@ -55,11 +57,11 @@ export default function ProgressPhotos() {
 
       {/* Quick stats */}
       <div className="stat-row" style={{marginBottom:'24px'}}>
-        <div className="stat-card">
+        <Link to="/log/history" className="stat-card" style={{textDecoration:'none',color:'inherit',cursor:'pointer'}}>
           <span className="stat-num">{stats.workouts}</span>
           <span className="stat-label">Workouts</span>
-        </div>
-        <div className="stat-card">
+        </Link>
+        <div className="stat-card" style={{cursor:'pointer'}} onClick={()=>setShowStrength(s=>!s)}>
           <span className="stat-num">{stats.prs}</span>
           <span className="stat-label">PRs Set</span>
         </div>
@@ -94,22 +96,24 @@ export default function ProgressPhotos() {
         )}
       </section>
 
-      {/* Strength progress chart */}
-      <section className="section">
-        <div className="section-header">
-          <span className="section-title">Strength Progress</span>
-        </div>
-        {exerciseList.length === 0 ? (
-          <p className="muted" style={{fontSize:'13px'}}>Log a few lifting workouts to see your progress here.</p>
-        ) : (
-          <div className="card-form">
-            <select className="input" value={selectedExercise} onChange={e=>setSelectedExercise(e.target.value)} style={{marginBottom:'14px'}}>
-              {exerciseList.map(ex => <option key={ex} value={ex}>{ex}</option>)}
-            </select>
-            {loadingHistory ? <div className="spinner"/> : <ProgressChart points={history || []} unit={user?.weightUnit || 'lbs'} />}
+      {/* Strength progress chart — shown when the "PRs Set" stat card above is tapped */}
+      {showStrength && (
+        <section className="section">
+          <div className="section-header">
+            <span className="section-title">Strength Progress</span>
           </div>
-        )}
-      </section>
+          {exerciseList.length === 0 ? (
+            <p className="muted" style={{fontSize:'13px'}}>Log a few lifting workouts to see your progress here.</p>
+          ) : (
+            <div className="card-form">
+              <select className="input" value={selectedExercise} onChange={e=>setSelectedExercise(e.target.value)} style={{marginBottom:'14px'}}>
+                {exerciseList.map(ex => <option key={ex} value={ex}>{ex}</option>)}
+              </select>
+              {loadingHistory ? <div className="spinner"/> : <ProgressChart points={history || []} unit={user?.weightUnit || 'lbs'} />}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Before & After comparison */}
       {photos.length >= 2 && (
@@ -136,6 +140,9 @@ export default function ProgressPhotos() {
           )}
         </section>
       )}
+
+      {/* Personal Goals — moved here from Challenges since it's an individual, not social, feature */}
+      <PersonalGoals />
     </div>
   );
 }

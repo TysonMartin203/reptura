@@ -1,4 +1,4 @@
-export default function HandMeasureDiagram({ size = 100 }) {
+export default function HandMeasureDiagram({ size = 100, showLine = true }) {
   return (
     <svg width={size} height={size * 1.2} viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* Palm */}
@@ -11,9 +11,13 @@ export default function HandMeasureDiagram({ size = 100 }) {
       <rect x="54" y="14" width="9" height="48" rx="4.5" fill="var(--teal)" stroke="var(--muted)" strokeWidth="1.5"/>
       <rect x="65" y="24" width="8" height="40" rx="4" fill="var(--teal)" stroke="var(--muted)" strokeWidth="1.5"/>
       {/* Measurement line straight across the palm, dotted, with end ticks */}
-      <line x1="26" y1="78" x2="74" y2="78" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" strokeDasharray="0.5 6"/>
-      <line x1="26" y1="73" x2="26" y2="83" stroke="var(--accent)" strokeWidth="2.5"/>
-      <line x1="74" y1="73" x2="74" y2="83" stroke="var(--accent)" strokeWidth="2.5"/>
+      {showLine && (
+        <>
+          <line x1="26" y1="78" x2="74" y2="78" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" strokeDasharray="0.5 6"/>
+          <line x1="26" y1="73" x2="26" y2="83" stroke="var(--accent)" strokeWidth="2.5"/>
+          <line x1="74" y1="73" x2="74" y2="83" stroke="var(--accent)" strokeWidth="2.5"/>
+        </>
+      )}
     </svg>
   );
 }

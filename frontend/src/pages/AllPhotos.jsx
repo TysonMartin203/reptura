@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { compressImage } from '../compressImage';
 import { today, formatDateStr } from '../dateUtils';
+import TagAutocompleteInput from '../components/TagAutocompleteInput';
+import { PHOTO_TAG_SUGGESTIONS } from '../data/photoTags';
 
 export default function AllPhotos() {
   const [photos,    setPhotos]    = useState([]);
@@ -15,6 +17,9 @@ export default function AllPhotos() {
   const [compressing, setCompressing] = useState(false);
   const [error,     setError]     = useState('');
   const [activeTag, setActiveTag] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editTagsInput, setEditTagsInput] = useState('');
+  const [savingTags, setSavingTags] = useState(false);
   const fileRef = useRef();
 
   useEffect(() => {
@@ -57,6 +62,25 @@ export default function AllPhotos() {
   const allTags = [...new Set(photos.flatMap(p => p.tags || []))].sort();
   const visiblePhotos = activeTag ? photos.filter(p => (p.tags || []).includes(activeTag)) : photos;
 
+  function startEditTags(ph) {
+    setEditingId(ph.id);
+    setEditTagsInput((ph.tags || []).join(', '));
+  }
+
+  async function saveTags(id) {
+    setSavingTags(true);
+    try {
+      const tags = editTagsInput.split(',').map(t => t.trim()).filter(Boolean);
+      await api.updatePhotoTags(id, tags);
+      setPhotos(p => p.map(ph => ph.id === id ? { ...ph, tags } : ph));
+      setEditingId(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingTags(false);
+    }
+  }
+
   if (loading) return <div className="page"><div className="spinner"/></div>;
 
   return (
@@ -79,8 +103,8 @@ export default function AllPhotos() {
           </div>
           <div className="field">
             <label className="label">Tags (optional)</label>
-            <input className="input" placeholder="e.g. bicep, back" value={tagsInput} onChange={e=>setTagsInput(e.target.value)} />
-            <p className="muted" style={{fontSize:'12px',marginTop:'4px'}}>Comma-separated. Applies to all photos in this upload. Use these later to filter progress by muscle group.</p>
+            <TagAutocompleteInput value={tagsInput} onChange={setTagsInput} suggestions={PHOTO_TAG_SUGGESTIONS} placeholder="e.g. Chest & Shoulders, Back" />
+            <p className="muted" style={{fontSize:'12px',marginTop:'4px'}}>Comma-separated — start typing to see suggestions. Applies to all photos in this upload. Use these later to filter progress by muscle group.</p>
           </div>
           {compressing && <p className="muted" style={{fontSize:'12px'}}>Optimizing photos…</p>}
           {previews.length > 0 && !compressing && (
@@ -110,17 +134,35 @@ export default function AllPhotos() {
           <div className="photo-grid">
             {visiblePhotos.map((ph, i) => (
               <div key={ph.id} className="photo-card" style={{animationDelay:`${i*.05}s`}}>
-                <img src={api.fileUrl(ph.file_path)} alt={ph.photo_date} className="photo-img" />
-                <div className="photo-footer">
-                  <div>
-                    <div>{formatDateStr(ph.photo_date)}</div>
-                    {ph.tags?.length > 0 && <div className="muted" style={{fontSize:'11px'}}>{ph.tags.join(', ')}</div>}
+                <img
+                  src={api.fileUrl(ph.file_path)}
+                  alt={ph.photo_date}
+                  className="photo-img"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => editingId === ph.id ? setEditingId(null) : startEditTags(ph)}
+                />
+                {editingId === ph.id ? (
+                  <div className="photo-footer" style={{flexDirection:'column',alignItems:'stretch',gap:'6px'}}>
+                    <TagAutocompleteInput value={editTagsInput} onChange={setEditTagsInput} suggestions={PHOTO_TAG_SUGGESTIONS} placeholder="e.g. Legs" className="input" />
+                    <div style={{display:'flex',gap:'6px'}}>
+                      <button className="btn-primary" style={{flex:1,padding:'6px'}} disabled={savingTags} onClick={()=>saveTags(ph.id)}>{savingTags ? 'Saving…' : 'Save Tags'}</button>
+                      <button className="btn-ghost-sm" onClick={()=>setEditingId(null)}>Cancel</button>
+                    </div>
                   </div>
-                  <button className="btn-ghost-sm" onClick={() => {
-                    api.deletePhoto(ph.id);
-                    setPhotos(p => p.filter(x => x.id !== ph.id));
-                  }}>Delete</button>
-                </div>
+                ) : (
+                  <div className="photo-footer">
+                    <div>
+                      <div>{formatDateStr(ph.photo_date)}</div>
+                      {ph.tags?.length > 0
+                        ? <div className="muted" style={{fontSize:'11px'}}>{ph.tags.join(', ')}</div>
+                        : <div className="muted" style={{fontSize:'11px'}}>Tap photo to tag</div>}
+                    </div>
+                    <button className="btn-ghost-sm" onClick={() => {
+                      api.deletePhoto(ph.id);
+                      setPhotos(p => p.filter(x => x.id !== ph.id));
+                    }}>Delete</button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
