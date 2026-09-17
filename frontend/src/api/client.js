@@ -1,5 +1,5 @@
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-function getToken() { return localStorage.getItem('fittrack_token'); }
+function getToken() { return localStorage.getItem('reptura_token'); }
 
 async function request(method, path, body) {
   const headers = { 'Content-Type': 'application/json' };

@@ -21,11 +21,11 @@ async function sendPasswordResetEmail(toEmail, resetUrl) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM || 'FitTrack <onboarding@resend.dev>',
+        from: process.env.RESEND_FROM || 'Reptura <onboarding@resend.dev>',
         to: toEmail,
-        subject: 'Reset your FitTrack password',
-        text: `Someone requested a password reset for your FitTrack account. If this was you, reset your password here: ${resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.`,
-        html: `<p>Someone requested a password reset for your FitTrack account.</p><p>If this was you, <a href="${resetUrl}">click here to reset your password</a>. This link expires in 1 hour.</p><p>If you didn't request this, you can safely ignore this email.</p>`,
+        subject: 'Reset your Reptura password',
+        text: `Someone requested a password reset for your Reptura account. If this was you, reset your password here: ${resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.`,
+        html: `<p>Someone requested a password reset for your Reptura account.</p><p>If this was you, <a href="${resetUrl}">click here to reset your password</a>. This link expires in 1 hour.</p><p>If you didn't request this, you can safely ignore this email.</p>`,
       }),
       signal: controller.signal,
     });

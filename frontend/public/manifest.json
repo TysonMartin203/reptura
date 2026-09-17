@@ -1,6 +1,6 @@
 {
-  "name": "FitTrack",
-  "short_name": "FitTrack",
+  "name": "Reptura",
+  "short_name": "Reptura",
   "description": "Track lifts. Hit PRs. Stay accountable.",
   "start_url": "/",
   "display": "standalone",

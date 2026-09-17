@@ -1,4 +1,4 @@
-# FitTrack — Deployment Guide
+# Reptura — Deployment Guide
 PWA (Add to Home Screen) version for iOS/Android
 
 ---
@@ -11,7 +11,7 @@ PWA (Add to Home Screen) version for iOS/Android
 | Database | Railway MySQL  | Free    |
 | Frontend | Netlify        | Free    |
 
-When done, FitTrack will be live at a real URL. You and friends can open it in Safari, tap **Share → Add to Home Screen**, and it launches like a native app with its own icon.
+When done, Reptura will be live at a real URL. You and friends can open it in Safari, tap **Share → Add to Home Screen**, and it launches like a native app with its own icon.
 
 ---
 
@@ -119,11 +119,11 @@ Go back to Railway and update `CLIENT_URL` to match this Netlify URL.
 2. Navigate to your Netlify URL
 3. Tap the **Share** button (box with arrow at bottom of screen)
 4. Scroll down and tap **Add to Home Screen**
-5. Name it **FitTrack** → tap **Add**
+5. Name it **Reptura** → tap **Add**
 
-FitTrack now appears on your home screen with the teal barbell icon and launches full-screen with no browser chrome, exactly like a native app.
+Reptura now appears on your home screen with its icon and launches full-screen with no browser chrome, exactly like a native app.
 
-**Share with friends:** send them the Netlify URL. They do the same Add to Home Screen steps on their iPhone or Android.
+**Share with friends:** send them your reptura.fit URL. They do the same Add to Home Screen steps on their iPhone or Android.
 
 ---
 
@@ -133,7 +133,7 @@ FitTrack now appears on your home screen with the teal barbell icon and launches
 Railway's free tier has ephemeral disk storage, which means uploaded photos may not persist if the service restarts. For personal use with a few people this is usually fine short-term. When you're ready to fix it properly, the upgrade path is to store photos in Cloudinary (free tier available) instead of the local filesystem — I can add that later.
 
 **Custom domain:**
-Both Railway and Netlify let you connect a custom domain (e.g. fittrack.app) for free once you own one. Not required to use the app.
+Both Railway and Netlify let you connect a custom domain for free once you own one. Reptura is now connected to **reptura.fit** via Netlify (A record → Netlify's load balancer, CNAME on `www` → the Netlify subdomain). If you later add a custom domain on the Railway backend too (e.g. `api.reptura.fit`), remember to update `VITE_API_URL` on Netlify and `CLIENT_URL` on Railway to match.
 
 **Costs:**
 As long as usage stays light (personal + friends), Railway and Netlify both stay free. Railway's free tier gives you $5/month in credits which is enough for a small backend + MySQL.

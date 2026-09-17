@@ -60,4 +60,4 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`FitTrack API on port ${PORT}`));
+app.listen(PORT, () => console.log(`Reptura API on port ${PORT}`));

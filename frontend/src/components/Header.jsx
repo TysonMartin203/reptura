@@ -16,7 +16,7 @@ export default function Header() {
       </button>
       <div className="header-logo">
         <IconLogo />
-        <span className="header-logo-text">FitTrack</span>
+        <span className="header-logo-text">Reptura</span>
       </div>
       <button className="header-avatar-btn" onClick={() => navigate('/settings')} aria-label="Profile">
         {avatarUrl

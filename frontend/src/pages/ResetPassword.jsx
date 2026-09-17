@@ -36,7 +36,7 @@ export default function ResetPassword() {
       <div className="auth-card">
         <div className="auth-brand">
           <div className="auth-logo-wrap"><IconLogo /></div>
-          <h1>FitTrack</h1>
+          <h1>Reptura</h1>
           <p>Set a new password</p>
         </div>
 

@@ -322,7 +322,7 @@ function ExerciseCard({ ex, index, onChange, onRemove, canRemove, profileWeight 
   );
 }
 
-const DRAFT_KEY = 'fittrack_workout_draft';
+const DRAFT_KEY = 'reptura_workout_draft';
 
 function loadDraft() {
   try {

@@ -126,8 +126,8 @@ function PlanDetail({ planId, profile, onBack, onUpdate }) {
       api.getMealTemplates().then(d => {
         const t = (d.templates || []).find(x => x.id === templateId);
         // We need full plan data — call the full template endpoint
-        fetch(`${window.__FITTRACK_BASE__ || import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/meals/templates`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('fittrack_token')}` }
+        fetch(`${window.__REPTURA_BASE__ || import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/meals/templates`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('reptura_token')}` }
         })
           .then(r => r.json())
           .catch(() => ({ templates: [] }));
@@ -136,7 +136,7 @@ function PlanDetail({ planId, profile, onBack, onUpdate }) {
           // fetch the full template inline
           fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/meals/templates/${templateId}`,{
             method:'GET',
-            headers:{ Authorization:`Bearer ${localStorage.getItem('fittrack_token')}` }
+            headers:{ Authorization:`Bearer ${localStorage.getItem('reptura_token')}` }
           })
             .then(r => r.json())
             .then(d => { setData({ plan: d.plan, name: d.name || t?.name || 'Plan', is_favorite: 0, source: 'template' }); setNameVal(d.name||t?.name||'Plan'); })

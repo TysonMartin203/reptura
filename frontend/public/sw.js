@@ -1,4 +1,4 @@
-const CACHE = 'fittrack-v1';
+const CACHE = 'reptura-v1';
 const STATIC = [
   '/',
   '/index.html',
@@ -58,7 +58,7 @@ self.addEventListener('fetch', e => {
 
 // Push: show a notification for buzzes, invites, shared plans, etc.
 self.addEventListener('push', e => {
-  let payload = { title: 'FitTrack', body: 'You have a new notification' };
+  let payload = { title: 'Reptura', body: 'You have a new notification' };
   try { payload = e.data.json(); } catch {}
   e.waitUntil(
     self.registration.showNotification(payload.title, {

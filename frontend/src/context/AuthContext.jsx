@@ -4,7 +4,7 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('fittrack_user') || 'null'); }
+    try { return JSON.parse(localStorage.getItem('reptura_user') || 'null'); }
     catch { return null; }
   });
 
@@ -19,21 +19,21 @@ export function AuthProvider({ children }) {
       tutorialDone: !!data.tutorialDone,
       isAdmin: !!data.isAdmin,
     };
-    localStorage.setItem('fittrack_token', data.token);
-    localStorage.setItem('fittrack_user', JSON.stringify(u));
+    localStorage.setItem('reptura_token', data.token);
+    localStorage.setItem('reptura_user', JSON.stringify(u));
     setUser(u);
     return u;
   }
 
   function updateUser(updates) {
     const u = { ...user, ...updates };
-    localStorage.setItem('fittrack_user', JSON.stringify(u));
+    localStorage.setItem('reptura_user', JSON.stringify(u));
     setUser(u);
   }
 
   function logout() {
-    localStorage.removeItem('fittrack_token');
-    localStorage.removeItem('fittrack_user');
+    localStorage.removeItem('reptura_token');
+    localStorage.removeItem('reptura_user');
     setUser(null);
   }
 

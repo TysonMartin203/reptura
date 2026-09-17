@@ -4,7 +4,7 @@ const pool = require('../config/db');
 const configured = !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 if (configured) {
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || 'mailto:admin@fittrack.app',
+    process.env.VAPID_SUBJECT || 'mailto:admin@reptura.fit',
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   );
