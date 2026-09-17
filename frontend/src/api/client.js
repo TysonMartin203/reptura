@@ -111,6 +111,10 @@ export const api = {
   getFeed:    ()        => request('GET',    '/api/feed'),
   react:      (id, r)   => request('POST',   `/api/feed/${id}/react`, { reaction: r }),
   unreact:    (id)      => request('DELETE', `/api/feed/${id}/react`),
+  getFeedPrefs:     ()          => request('GET',    '/api/feed/prefs'),
+  updateFeedTypes:  (types)     => request('PUT',    '/api/feed/prefs', { types }),
+  muteFriendFeed:   (friendId)  => request('POST',   `/api/feed/mute/${friendId}`),
+  unmuteFriendFeed: (friendId)  => request('DELETE', `/api/feed/mute/${friendId}`),
 
   buzzFriend:     (friendId) => request('POST', `/api/social/buzz/${friendId}`, {}),
   getLeaderboard: (metric='workouts', period='week') => request('GET', `/api/social/leaderboard?metric=${metric}&period=${period}`),

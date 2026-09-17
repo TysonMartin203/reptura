@@ -96,12 +96,18 @@ async function recognize(req, res) {
     if (!photo) return res.status(400).json({ error: 'No photo provided' });
     const client = getClient();
 
+    const restaurant = (req.body?.restaurant || '').trim().slice(0, 100);
+
     const profile = await getProfile(req.userId).catch(() => null);
     const palmWidth = profile?.palmWidth || null;
 
     const scaleNote = palmWidth
       ? `The user's palm width (straight across, not including thumb) is ${palmWidth} inches. If a hand is visible in a photo, use it as a precise scale reference.`
       : `The user hasn't recorded their palm width. If a hand is visible, assume an average adult palm width of about 3.5 inches as a rough scale reference.`;
+
+    const restaurantNote = restaurant
+      ? `The user says this is from ${restaurant}. Treat this as reliable — draw directly on your knowledge of ${restaurant}'s actual published nutrition information for the specific menu item(s) shown, matching size/style as closely as you can tell from the photo (e.g. small/medium/large, regular vs. double, which sides or sauces), rather than estimating from portion appearance alone. Chain nutrition data is exact, and this is far more accurate than a visual guess — use it as your primary source and only fall back to visual estimation for anything not on their published menu (e.g. a modified order, an item they clearly customized, or a side you can't identify).`
+      : `Look for visual cues that this might be fast food or a chain restaurant item — distinctive packaging, wrappers, boxes, cups, trays, or branding visible in the photo. If you recognize a specific chain and menu item with reasonable confidence, use your knowledge of that chain's actual published nutrition data for that item (matching size as closely as you can tell) instead of estimating from portion size — this is significantly more accurate than a visual guess for standardized fast-food items. Only fall back to portion-based estimation for homemade or non-chain food, or if you can't identify the specific chain/item with real confidence.`;
 
     const angleNote = photo2
       ? `You've been given TWO photos of the same meal from different angles (e.g. one from above, one from the side). Use both together — a single photo can't show how tall or deep a pile of food is, so cross-reference the two to judge portion volume much more accurately than either photo alone would allow. If the photos disagree on something, trust whichever view shows that specific detail more clearly rather than averaging blindly.`
@@ -111,14 +117,17 @@ async function recognize(req, res) {
 
 ${scaleNote} Other useful size references if visible: a standard dinner plate is ~10-11 inches across, a standard bowl holds ~16-20oz, a fist is roughly 1 cup, a deck-of-cards-sized portion of meat is ~3-4oz, a thumb is roughly 1oz of cheese or fat.
 
+${restaurantNote}
+
 ${angleNote}
 
 Steps:
 1. Identify each distinct food/ingredient visible separately — don't lump them into one guess.
-2. For each item, estimate its portion size using the visual scale references above, prioritizing stable references (plate/bowl diameter, hand) over depth-dependent cues (pile height, shading) that shift with camera angle.
-3. Consider preparation method from visual cues (fried vs. baked vs. steamed, visible oil sheen, breading, cheese, sauce, dressing) — these are the single biggest source of underestimated calories in photo-based tracking, since oil and dressing are often invisible or hard to judge but calorically dense. If the food looks like it was cooked with oil/butter or has a sauce/dressing, factor that in even though you can't see the exact amount.
-4. Estimate calories and macros for each item individually, then sum them for the totals.
-5. Note any meaningful assumptions or uncertainty (e.g. "assumed steamed, not roasted with oil" or "sauce could add 100-200 cal if creamy rather than vinegar-based") so the user can adjust if you guessed wrong.
+2. First check: is this a recognizable fast-food or chain-restaurant item (per the note above)? If so, prioritize that chain's real published nutrition numbers for the closest-matching menu item and size over visual portion estimation — this step comes before any visual size guessing, since it's far more accurate when it applies.
+3. For anything not covered by known chain data (homemade food, non-chain restaurants, or items you can't confidently identify), estimate portion size using the visual scale references above, prioritizing stable references (plate/bowl diameter, hand) over depth-dependent cues (pile height, shading) that shift with camera angle.
+4. Consider preparation method from visual cues (fried vs. baked vs. steamed, visible oil sheen, breading, cheese, sauce, dressing) — these are a major source of underestimated calories in photo-based tracking, since oil and dressing are often invisible or hard to judge but calorically dense. If the food looks like it was cooked with oil/butter or has a sauce/dressing, factor that in even though you can't see the exact amount.
+5. Estimate calories and macros for each item individually, then sum them for the totals.
+6. Note any meaningful assumptions or uncertainty (e.g. "assumed steamed, not roasted with oil", "used [Chain]'s published values for a medium order", or "sauce could add 100-200 cal if creamy rather than vinegar-based") so the user can adjust if you guessed wrong.
 
 Return ONLY valid JSON, no markdown, in this exact structure:
 {
@@ -134,7 +143,7 @@ Return ONLY valid JSON, no markdown, in this exact structure:
   "notes": "1-2 sentences on key assumptions or what could shift the estimate, or empty string if nothing notable"
 }
 
-Give your best reasonable estimate rather than refusing, even when uncertain — that's the whole point of this tool. Use "low" confidence honestly when the dish is complex, mixed, or heavily sauced rather than defaulting to "medium".`;
+Give your best reasonable estimate rather than refusing, even when uncertain — that's the whole point of this tool. Use "low" confidence honestly when the dish is complex, mixed, or heavily sauced rather than defaulting to "medium". A confidently-identified chain/fast-food item matched to real published nutrition data should get "high" confidence, since that's an exact figure rather than a visual guess.`;
 
     const imageContent = [
       { type: 'image', source: { type: 'base64', media_type: photo.mimetype, data: photo.buffer.toString('base64') } },

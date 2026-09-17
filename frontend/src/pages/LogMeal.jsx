@@ -44,6 +44,7 @@ export default function LogMeal() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [scanning, setScanning] = useState(false);
+  const [restaurantHint, setRestaurantHint] = useState('');
   const [scanResult, setScanResult] = useState(null);
   const [scanError, setScanError] = useState('');
   const [voiceLoading, setVoiceLoading] = useState(false);
@@ -133,6 +134,7 @@ export default function LogMeal() {
       setFirstPhoto(compressed);
       const fd = new FormData();
       fd.append('photo', compressed);
+      if (restaurantHint.trim()) fd.append('restaurant', restaurantHint.trim());
       const result = await api.recognizeFood(fd);
       applyAiResult(result);
       setScanResult(result);
@@ -158,6 +160,7 @@ export default function LogMeal() {
       const fd = new FormData();
       fd.append('photo', firstPhoto);
       fd.append('photo2', compressed);
+      if (restaurantHint.trim()) fd.append('restaurant', restaurantHint.trim());
       const result = await api.recognizeFood(fd);
       applyAiResult(result);
       setScanResult(result);
@@ -240,7 +243,7 @@ export default function LogMeal() {
         return;
       }
       await api.logMeal(payload);
-      setIngredients([blankIngredient()]); setNotes(''); setLogPercent(100);
+      setIngredients([blankIngredient()]); setNotes(''); setLogPercent(100); setRestaurantHint('');
       setScanResult(null);
       setFirstPhoto(null);
       loadDay();
@@ -292,6 +295,12 @@ export default function LogMeal() {
           <div className="glass-card" style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'12px',border:'1px solid var(--accent)'}}>
             <HandMeasureDiagram size={52} showLine={false}/>
             <p style={{fontSize:'13px',fontWeight:'600',margin:0}}>Shoot from directly above with your open hand flat next to the food, palm facing up — top-down shots with a hand in frame give the most accurate size estimate. Set your palm width in your Meal & Workout Profile for the most accurate results.</p>
+          </div>
+          <div className="field">
+            <label className="label">Restaurant (optional)</label>
+            <input className="input" placeholder="e.g. McDonald's, Chipotle, Chick-fil-A" value={restaurantHint}
+              onChange={e=>setRestaurantHint(e.target.value)} style={{marginBottom:'4px'}}/>
+            <p className="muted" style={{fontSize:'11px'}}>If this is fast food or a chain restaurant, naming it lets the AI use their published nutrition info instead of a visual estimate — much more accurate.</p>
           </div>
           <input ref={fileRef} type="file" accept="image/*" onChange={scanPhoto} style={{display:'none'}} id="food-photo-input"/>
           <label htmlFor="food-photo-input" className="btn-secondary" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',cursor:'pointer',marginBottom:'10px'}}>

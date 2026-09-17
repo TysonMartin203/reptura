@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { LIFTING_EXERCISES, CARDIO_ACTIVITIES, CARDIO_TYPES, SPORT_NAMES, INTENSITY_LEVELS, DISTANCE_UNITS, calculateCardioCalories, formatPace } from '../data/exercises';
-import { compressImage } from '../compressImage';
 import { today } from '../dateUtils';
 import { IconTrophy, IconCheck } from './Icons';
 import VoiceNoteButton from './VoiceNoteButton';
@@ -9,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { displayWeight, toStorageWeight, weightUnitLabel } from '../units';
 import TimeInput from './TimeInput';
+import WorkoutPhotos from './WorkoutPhotos';
 
 function blankLiftingExercise() {
   return {
@@ -337,7 +337,7 @@ function clearDraft() {
   try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
 }
 
-export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDelete, onRemovePhoto }) {
+export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDelete }) {
   const { user } = useAuth();
   // Drafts only apply to a genuinely fresh log (not editing, not prefilled from a plan) —
   // protects against losing everything if you navigate away mid-entry.
@@ -352,16 +352,11 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
   const [exercises,    setExercises]    = useState(
     draft?.exercises?.length ? draft.exercises : (initial?.exercises?.length ? initial.exercises : [blankLiftingExercise()])
   );
-  const [photoFile,    setPhotoFile]    = useState(null);
-  const [compressingPhoto, setCompressingPhoto] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState(initial?.photoUrl || null);
-  const [hasExistingPhoto, setHasExistingPhoto] = useState(!!initial?.photoUrl);
-  const [showRemovePhotoPopup, setShowRemovePhotoPopup] = useState(false);
   const [error,        setError]        = useState('');
   const [result,       setResult]       = useState(null);
   const [loading,      setLoading]      = useState(false);
   const [profileWeight, setProfileWeight] = useState(null);
-  const fileRef = useRef();
+  const [createdWorkoutId, setCreatedWorkoutId] = useState(null);
 
   useEffect(() => {
     api.getProfile().then(d => { if (d.profile?.weight) setProfileWeight(Number(d.profile.weight)); }).catch(()=>{});
@@ -384,17 +379,6 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
     setUsingDraft(false);
     setName(''); setDate(today()); setNotesBefore(''); setNotesAfter('');
     setExercises([blankLiftingExercise()]);
-  }
-
-  async function confirmRemovePhoto(keep) {
-    setShowRemovePhotoPopup(false);
-    if (onRemovePhoto) {
-      try { await onRemovePhoto(keep); } catch { /* surfaced by parent if needed */ }
-    }
-    setPhotoPreview(null);
-    setHasExistingPhoto(false);
-    setPhotoFile(null);
-    if (fileRef.current) fileRef.current.value = '';
   }
 
   function updateExercise(i, next) {
@@ -509,15 +493,6 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
       setVoiceLoading(false);
     }
   }
-  async function onPhoto(e) {
-    const f = e.target.files[0];
-    if (!f) return;
-    setCompressingPhoto(true);
-    const compressed = await compressImage(f);
-    setPhotoFile(compressed);
-    setPhotoPreview(URL.createObjectURL(compressed));
-    setCompressingPhoto(false);
-  }
 
   async function submit(e) {
     e.preventDefault();
@@ -561,15 +536,14 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
 
     setLoading(true);
     try {
-      const data = await onSubmit(payload, photoFile);
+      const data = await onSubmit(payload);
       setResult(data);
       if (isDraftable) clearDraft();
       if (mode === 'create') {
+        setCreatedWorkoutId(data.workoutId || null);
         setName('');
         setExercises([blankLiftingExercise()]);
         setNotesBefore(''); setNotesAfter('');
-        setPhotoFile(null); setPhotoPreview(null); setHasExistingPhoto(false);
-        if (fileRef.current) fileRef.current.value = '';
       }
     } catch (err) {
       setError(err.message);
@@ -639,34 +613,6 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
         <textarea className="input" rows={2} placeholder="How'd it go?" value={notesAfter} onChange={e => setNotesAfter(e.target.value)} />
       </div>
 
-      <div className="field">
-        <label className="label">Progress photo (optional)</label>
-        {!hasExistingPhoto && (
-          <input className="input" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" ref={fileRef} onChange={onPhoto} />
-        )}
-      </div>
-      {compressingPhoto && <p className="muted" style={{fontSize:'12px'}}>Optimizing photo…</p>}
-      {photoPreview && !compressingPhoto && (
-        <div>
-          <img src={photoPreview} alt="preview" className="photo-preview" />
-          {hasExistingPhoto && (
-            <button type="button" className="btn-ghost-sm" style={{marginTop:'8px'}} onClick={()=>setShowRemovePhotoPopup(true)}>
-              Remove Photo
-            </button>
-          )}
-        </div>
-      )}
-      {showRemovePhotoPopup && (
-        <div className="glass-card" style={{marginTop:'-8px'}}>
-          <p style={{fontSize:'13px',fontWeight:'600',marginBottom:'10px'}}>Remove this photo from the workout?</p>
-          <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-            <button type="button" className="btn-accent-sm" onClick={()=>confirmRemovePhoto(true)}>Keep in Progress Photos</button>
-            <button type="button" className="btn-danger-sm" onClick={()=>confirmRemovePhoto(false)}>Delete Completely</button>
-            <button type="button" className="btn-ghost-sm" onClick={()=>setShowRemovePhotoPopup(false)}>Cancel</button>
-          </div>
-        </div>
-      )}
-
       {error && <p className="form-error">{error}</p>}
       {result && (
         <div className={`result-banner ${newPRs.length ? 'pr-banner' : ''}`}>
@@ -678,7 +624,7 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
         </div>
       )}
 
-      <button className="btn-primary" type="submit" disabled={loading || compressingPhoto}>
+      <button className="btn-primary" type="submit" disabled={loading}>
         {loading ? 'Saving…' : mode === 'edit' ? 'Save Changes' : 'Log Workout'}
       </button>
 
@@ -687,6 +633,13 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
           Delete Workout
         </button>
       )}
+
+      {/* Once a new workout exists, let them add photos to it right away —
+          the multi-photo uploader needs a real workout id, which only exists after this point. */}
+      {mode === 'create' && createdWorkoutId && (
+        <WorkoutPhotos workoutId={createdWorkoutId} date={date} />
+      )}
     </form>
+
   );
 }

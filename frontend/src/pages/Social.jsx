@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -22,6 +23,7 @@ function FriendsTab() {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
   const [buzzed,   setBuzzed]   = useState({});
+  const [buzzCooldownMsg, setBuzzCooldownMsg] = useState('');
   const [pushStatus, setPushStatus] = useState('unknown');
   const [enabling,   setEnabling]   = useState(false);
   const [showShare,  setShowShare]  = useState(false);
@@ -89,7 +91,7 @@ function FriendsTab() {
       setTimeout(() => setBuzzed(b => ({ ...b, [friendId]: null })), 3000);
     } catch (err) {
       setBuzzed(b => ({ ...b, [friendId]: null }));
-      setError(err.message);
+      setBuzzCooldownMsg(err.message);
     }
   }
 
@@ -223,6 +225,18 @@ function FriendsTab() {
           ))
         }
       </section>
+
+      {buzzCooldownMsg && createPortal(
+        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,.55)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}} onClick={()=>setBuzzCooldownMsg('')}>
+          <div style={{width:'100%',maxWidth:'360px',borderRadius:'16px',background:'var(--surface)',padding:'22px 20px',boxShadow:'var(--shadow-lg)',textAlign:'center'}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:'32px',marginBottom:'8px'}}><IconLightning style={{width:'32px',height:'32px',color:'var(--accent)'}}/></div>
+            <h3 style={{marginBottom:'8px'}}>Can't Buzz Yet</h3>
+            <p className="muted" style={{fontSize:'13px',marginBottom:'18px'}}>{buzzCooldownMsg}</p>
+            <button className="btn-primary" style={{width:'100%'}} onClick={()=>setBuzzCooldownMsg('')}>Got It</button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

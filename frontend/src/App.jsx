@@ -22,6 +22,7 @@ import Feed       from './pages/Feed';
 import Social     from './pages/Social';
 import ProfileView from './pages/ProfileView';
 import Settings   from './pages/Settings';
+import AccountSettings from './pages/AccountSettings';
 import Meals      from './pages/Meals';
 import MealsHub   from './pages/MealsHub';
 import LogMeal    from './pages/LogMeal';
@@ -55,6 +56,7 @@ function AppRoutes() {
       <Route path="/social"    element={<Private><Social /></Private>} />
       <Route path="/profile/:id" element={<Private><ProfileView /></Private>} />
       <Route path="/settings"  element={<Private><Settings /></Private>} />
+      <Route path="/account"   element={<Private><AccountSettings /></Private>} />
       <Route path="/meals"     element={<Private><MealsHub /></Private>} />
       <Route path="/meals/plans" element={<Private><Meals /></Private>} />
       <Route path="/meals/log" element={<Private><LogMeal /></Private>} />

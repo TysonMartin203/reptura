@@ -749,13 +749,20 @@ export default function Meals() {
   }
 
   // Plan list
-  // Plate+dome SVG for empty states
+  // Plate+dome SVG for empty states — viewed from above at an angle (not a
+  // flat side profile, and not perfectly overhead), so the dome reads as a
+  // rounded 3D cover rather than a flat arc or a pure top-down circle.
   const PlateDome = () => (
     <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{margin:'0 auto 12px',opacity:.4}}>
-      <ellipse cx="12" cy="19" rx="9" ry="3"/>
-      <path d="M3 16 C3 10 21 10 21 16"/>
-      <line x1="12" y1="10" x2="12" y2="7"/>
-      <circle cx="12" cy="6" r="1.5" fill="var(--muted)"/>
+      {/* Plate rim, foreshortened by the angled overhead view */}
+      <ellipse cx="12" cy="17.5" rx="9" ry="4.2"/>
+      {/* Outer dome silhouette */}
+      <path d="M3.3 15.3 C3.8 8.5 20.2 8.5 20.7 15.3"/>
+      {/* Inner curvature line showing the dome wrapping away from the viewer at an angle */}
+      <path d="M6.3 14 C7.3 10.3 16.7 10.3 17.7 14" strokeWidth="1" opacity="0.65"/>
+      {/* Knob handle, offset off-center since we're not looking straight down */}
+      <line x1="13" y1="8.5" x2="13.6" y2="6.2"/>
+      <circle cx="13.8" cy="5.5" r="1.35" fill="var(--muted)"/>
     </svg>
   );
 

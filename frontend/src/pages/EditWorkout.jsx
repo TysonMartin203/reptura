@@ -11,7 +11,6 @@ function toFormInitial(workout) {
     date: workout.date ? String(workout.date).slice(0, 10) : '',
     notesBefore: workout.notes_before || '',
     notesAfter: workout.notes_after || '',
-    photoUrl: api.fileUrl(workout.photo_path),
     exercises: (workout.exercises || []).map(e => {
       if (e.category === 'lifting') {
         return {
@@ -67,26 +66,24 @@ export default function EditWorkout() {
     }
   }
 
-  async function handleRemovePhoto(keep) {
-    await api.removeWorkoutPhoto(id, keep);
-  }
-
   if (loading) return <div className="page"><div className="spinner" /></div>;
   if (error && !initial) return <div className="page"><p className="form-error">{error}</p></div>;
 
   return (
     <div className="page">
       <h2 className="page-title">Edit Workout</h2>
+      {/* The multi-photo uploader lives here, before the Save Changes / Delete
+          Workout buttons inside the form below — it's the one and only place
+          to add photos to this workout now. */}
+      {initial && <WorkoutPhotos workoutId={id} date={initial.date} />}
       <div className="card-form">
         <WorkoutForm
           mode="edit"
           initial={initial}
-          onSubmit={(payload, photoFile) => api.updateWorkout(id, payload, photoFile)}
+          onSubmit={(payload) => api.updateWorkout(id, payload)}
           onDelete={handleDelete}
-          onRemovePhoto={handleRemovePhoto}
         />
       </div>
-      {initial && <WorkoutPhotos workoutId={id} date={initial.date} />}
     </div>
   );
 }

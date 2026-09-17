@@ -2,12 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
-import { IconEdit, IconChevron, IconSun, IconMoon, IconCheck } from '../components/Icons';
+import { IconEdit, IconChevron, IconCheck } from '../components/Icons';
 import AchievementIcon from '../components/AchievementIcon';
 import { compressImage } from '../compressImage';
-import { enablePush, disablePush, getPushStatus } from '../push';
-import ProfileEditModal from '../components/ProfileEditModal';
-import { MAP_STYLES, MAP_STYLE_STORAGE_KEY, getSavedMapStyle } from '../data/mapStyles';
 
 // How-to descriptions for each achievement
 const HOW_TO = {
@@ -31,8 +28,15 @@ const HOW_TO = {
   has_avatar:      'Upload a profile photo by tapping your avatar at the top of this page.',
 };
 
+const FEED_TYPES = [
+  { key: 'workout',   label: 'Workouts',   meta: 'When you or a friend logs a workout' },
+  { key: 'pr',        label: 'PRs',        meta: 'When you or a friend sets a personal record' },
+  { key: 'meal',      label: 'Meals',      meta: 'When you or a friend logs a meal' },
+  { key: 'challenge', label: 'Challenges', meta: 'When you or a friend starts or joins a challenge' },
+];
+
 export default function Settings() {
-  const { user, logout, updateUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const fileRef  = useRef();
   const [uploading,    setUploading]    = useState(false);
@@ -41,64 +45,16 @@ export default function Settings() {
   const [achievements, setAchievements] = useState([]);
   const [loadingAch,   setLoadingAch]   = useState(true);
   const [showAll,      setShowAll]      = useState(false);
-  const [expanded,     setExpanded]     = useState(null); // which achievement is expanded
+  const [expanded,     setExpanded]     = useState(null);
   const [bio,          setBio]          = useState(user?.bio || '');
   const [savingBio,    setSavingBio]    = useState(false);
-  const [pushStatus,   setPushStatus]   = useState('unknown');
-  const [mwSummaryCount, setMwSummaryCount] = useState(0);
-  const [mapStyle, setMapStyle] = useState(getSavedMapStyle);
 
-  function selectMapStyle(style) {
-    setMapStyle(style);
-    localStorage.setItem(MAP_STYLE_STORAGE_KEY, style);
-  }
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showAccount, setShowAccount] = useState(null); // 'username' | 'email' | 'password' | null
-  const [usernameInput, setUsernameInput] = useState(user?.username || '');
-  const [emailInput, setEmailInput] = useState(user?.email || '');
-  const [currentPw, setCurrentPw] = useState('');
-  const [newPw, setNewPw] = useState('');
-  const [confirmPw, setConfirmPw] = useState('');
-  const [accountError, setAccountError] = useState('');
-  const [accountSuccess, setAccountSuccess] = useState('');
-  const [savingAccount, setSavingAccount] = useState(false);
-
-  async function saveUsername(e) {
-    e.preventDefault();
-    setAccountError(''); setAccountSuccess(''); setSavingAccount(true);
-    try {
-      const res = await api.changeUsername({ newUsername: usernameInput });
-      updateUser({ username: res.username });
-      setAccountSuccess('Username updated.');
-      setShowAccount(null);
-    } catch (err) { setAccountError(err.message); }
-    finally { setSavingAccount(false); }
-  }
-
-  async function saveEmail(e) {
-    e.preventDefault();
-    setAccountError(''); setAccountSuccess(''); setSavingAccount(true);
-    try {
-      const res = await api.changeEmail({ newEmail: emailInput, currentPassword: currentPw });
-      updateUser({ email: res.email });
-      setAccountSuccess('Email updated.');
-      setShowAccount(null); setCurrentPw('');
-    } catch (err) { setAccountError(err.message); }
-    finally { setSavingAccount(false); }
-  }
-
-  async function savePassword(e) {
-    e.preventDefault();
-    setAccountError(''); setAccountSuccess('');
-    if (newPw !== confirmPw) { setAccountError("New passwords don't match."); return; }
-    setSavingAccount(true);
-    try {
-      await api.changePassword({ currentPassword: currentPw, newPassword: newPw });
-      setAccountSuccess('Password updated.');
-      setShowAccount(null); setCurrentPw(''); setNewPw(''); setConfirmPw('');
-    } catch (err) { setAccountError(err.message); }
-    finally { setSavingAccount(false); }
-  }
+  // Feed preferences
+  const [feedTypes, setFeedTypesState] = useState(null); // null = all types shown
+  const [friends, setFriends] = useState([]);
+  const [mutedIds, setMutedIds] = useState(new Set());
+  const [feedPrefsLoading, setFeedPrefsLoading] = useState(true);
+  const [showFriendFeedList, setShowFriendFeedList] = useState(false);
 
   const initials  = user?.username?.slice(0,2).toUpperCase() || 'FT';
   const avatarUrl = user?.avatarUrl ? api.fileUrl(user.avatarUrl) : null;
@@ -108,10 +64,15 @@ export default function Settings() {
       .then(d => setAchievements(d.achievements || []))
       .catch(() => {})
       .finally(() => setLoadingAch(false));
-    getPushStatus().then(setPushStatus).catch(() => setPushStatus('unsupported'));
-    api.getProfile().then(d => {
-      if (d.profile) setMwSummaryCount(Object.values(d.profile).filter(v => v && (!Array.isArray(v) || v.length>0)).length);
-    }).catch(()=>{});
+
+    Promise.all([api.getFeedPrefs(), api.getFriends()])
+      .then(([prefs, friendList]) => {
+        setFeedTypesState(prefs.feedTypes); // null or array
+        setMutedIds(new Set((prefs.mutedFriends || []).map(f => f.id)));
+        setFriends(friendList || []);
+      })
+      .catch(() => {})
+      .finally(() => setFeedPrefsLoading(false));
   }, []);
 
   async function onAvatarChange(e) {
@@ -129,11 +90,6 @@ export default function Settings() {
     finally { setUploading(false); }
   }
 
-  async function setTheme(theme) {
-    updateUser({ theme }); // apply instantly
-    try { await api.updateTheme(theme); } catch {} // persisted best-effort
-  }
-
   async function saveBio() {
     setSavingBio(true);
     try {
@@ -144,34 +100,29 @@ export default function Settings() {
     finally { setSavingBio(false); }
   }
 
-  async function toggleNotifyBuzz() {
-    const next = !user.notifyBuzz;
-    updateUser({ notifyBuzz: next });
-    try { await api.updateAccountSettings({ notifyBuzz: next }); } catch {}
-  }
-  async function toggleNotifyMessages() {
-    const next = !user.notifyMessages;
-    updateUser({ notifyMessages: next });
-    try { await api.updateAccountSettings({ notifyMessages: next }); } catch {}
-  }
-  async function toggleNotifyReactions() {
-    const next = !user.notifyReactions;
-    updateUser({ notifyReactions: next });
-    try { await api.updateAccountSettings({ notifyReactions: next }); } catch {}
+  // All types on by default (feedTypes === null); toggling one off when
+  // starting from "all" means: start from the full set minus this one.
+  const allTypeKeys = FEED_TYPES.map(t => t.key);
+  const activeTypes = feedTypes === null ? allTypeKeys : feedTypes;
+  async function toggleFeedType(key) {
+    const next = activeTypes.includes(key) ? activeTypes.filter(k => k !== key) : [...activeTypes, key];
+    // If everything ends up selected, store as "all" (null) rather than an
+    // explicit list, matching how the backend treats an empty/full list.
+    const toSave = next.length === allTypeKeys.length ? [] : next;
+    setFeedTypesState(next.length === allTypeKeys.length ? null : next);
+    try { await api.updateFeedTypes(toSave); } catch (err) { setError(err.message); }
   }
 
-  async function setWeightUnit(unit) {
-    updateUser({ weightUnit: unit });
-    try { await api.updateAccountSettings({ weightUnit: unit }); } catch {}
-  }
-  async function setDistanceUnit(unit) {
-    updateUser({ distanceUnit: unit });
-    try { await api.updateAccountSettings({ distanceUnit: unit }); } catch {}
-  }
-  async function togglePush() {
+  async function toggleFriendInFeed(friendId) {
+    const isMuted = mutedIds.has(friendId);
+    setMutedIds(prev => {
+      const next = new Set(prev);
+      isMuted ? next.delete(friendId) : next.add(friendId);
+      return next;
+    });
     try {
-      if (pushStatus === 'subscribed') { await disablePush(); setPushStatus('not-subscribed'); }
-      else { await enablePush(); setPushStatus('subscribed'); }
+      if (isMuted) await api.unmuteFriendFeed(friendId);
+      else await api.muteFriendFeed(friendId);
     } catch (err) { setError(err.message); }
   }
 
@@ -204,6 +155,13 @@ export default function Settings() {
         <p className="muted" style={{fontSize:'12px',marginTop:'4px'}}>Tap photo to change</p>
       </div>
 
+      {/* Settings button — everything else (account, appearance, notifications,
+          meal/workout profile, units, admin, logout) lives on its own page now. */}
+      <button className="btn-secondary" style={{width:'100%',marginBottom:'20px',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}
+        onClick={()=>navigate('/account')}>
+        ⚙️ Settings
+      </button>
+
       {/* Bio */}
       <div className="section">
         <div className="section-header">
@@ -216,175 +174,46 @@ export default function Settings() {
         </button>
       </div>
 
-      {/* Account */}
+      {/* Feed Preferences */}
       <div className="section">
         <div className="section-header">
-          <span className="section-title">Account</span>
+          <span className="section-title">Feed Preferences</span>
         </div>
-        {accountSuccess && <p className="form-success" style={{marginBottom:'8px'}}>{accountSuccess}</p>}
+        <p className="muted" style={{fontSize:'12px',marginBottom:'10px'}}>Choose what shows up in your feed, from you and your friends.</p>
+        {feedPrefsLoading ? <div className="spinner" style={{margin:'10px auto'}}/> : (
+          <>
+            {FEED_TYPES.map(t => (
+              <label key={t.key} className="list-item" style={{cursor:'pointer'}}>
+                <div style={{flex:1}}>
+                  <div className="item-main">{t.label}</div>
+                  <div className="item-meta">{t.meta}</div>
+                </div>
+                <input type="checkbox" checked={activeTypes.includes(t.key)} onChange={()=>toggleFeedType(t.key)}
+                  style={{width:'18px',height:'18px',accentColor:'var(--accent)'}} />
+              </label>
+            ))}
 
-        <div className="list-item clickable" onClick={()=>{setShowAccount(s=>s==='username'?null:'username'); setAccountError('');}}>
-          <div style={{flex:1}}>
-            <div className="item-main">Username</div>
-            <div className="item-meta">{user?.username}</div>
-          </div>
-          <IconChevron style={{width:'16px',height:'16px',color:'var(--muted)'}}/>
-        </div>
-        {showAccount === 'username' && (
-          <form onSubmit={saveUsername} className="card-form form-stack" style={{marginBottom:'10px'}}>
-            <div className="field">
-              <label className="label">New Username</label>
-              <input className="input" value={usernameInput} onChange={e=>setUsernameInput(e.target.value)} required/>
+            <div className="list-item clickable" style={{cursor:'pointer',marginTop:'8px'}} onClick={()=>setShowFriendFeedList(s=>!s)}>
+              <div style={{flex:1}}>
+                <div className="item-main">Friends in your feed</div>
+                <div className="item-meta">{mutedIds.size > 0 ? `${mutedIds.size} friend${mutedIds.size===1?'':'s'} hidden` : 'All friends shown'}</div>
+              </div>
+              <IconChevron style={{width:'16px',height:'16px',color:'var(--muted)',transform: showFriendFeedList ? 'rotate(90deg)' : 'none'}}/>
             </div>
-            {accountError && <p className="form-error">{accountError}</p>}
-            <button className="btn-primary" type="submit" disabled={savingAccount}>{savingAccount?'Saving…':'Save Username'}</button>
-          </form>
+            {showFriendFeedList && (
+              friends.length === 0 ? <p className="muted" style={{fontSize:'12px',padding:'8px 0'}}>No friends yet.</p> :
+              friends.map(f => (
+                <label key={f.id} className="list-item" style={{cursor:'pointer'}}>
+                  <div style={{flex:1}}>
+                    <div className="item-main">{f.username}</div>
+                  </div>
+                  <input type="checkbox" checked={!mutedIds.has(f.id)} onChange={()=>toggleFriendInFeed(f.id)}
+                    style={{width:'18px',height:'18px',accentColor:'var(--accent)'}} />
+                </label>
+              ))
+            )}
+          </>
         )}
-
-        <div className="list-item clickable" onClick={()=>{setShowAccount(s=>s==='email'?null:'email'); setAccountError('');}}>
-          <div style={{flex:1}}>
-            <div className="item-main">Email</div>
-            <div className="item-meta">{user?.email}</div>
-          </div>
-          <IconChevron style={{width:'16px',height:'16px',color:'var(--muted)'}}/>
-        </div>
-        {showAccount === 'email' && (
-          <form onSubmit={saveEmail} className="card-form form-stack" style={{marginBottom:'10px'}}>
-            <div className="field">
-              <label className="label">New Email</label>
-              <input className="input" type="email" value={emailInput} onChange={e=>setEmailInput(e.target.value)} required/>
-            </div>
-            <div className="field">
-              <label className="label">Current Password</label>
-              <input className="input" type="password" value={currentPw} onChange={e=>setCurrentPw(e.target.value)} placeholder="Leave blank if you use Google sign-in"/>
-            </div>
-            {accountError && <p className="form-error">{accountError}</p>}
-            <button className="btn-primary" type="submit" disabled={savingAccount}>{savingAccount?'Saving…':'Save Email'}</button>
-          </form>
-        )}
-
-        <div className="list-item clickable" onClick={()=>{setShowAccount(s=>s==='password'?null:'password'); setAccountError('');}}>
-          <div style={{flex:1}}>
-            <div className="item-main">Password</div>
-            <div className="item-meta">Change your password</div>
-          </div>
-          <IconChevron style={{width:'16px',height:'16px',color:'var(--muted)'}}/>
-        </div>
-        {showAccount === 'password' && (
-          <form onSubmit={savePassword} className="card-form form-stack">
-            <div className="field">
-              <label className="label">Current Password</label>
-              <input className="input" type="password" value={currentPw} onChange={e=>setCurrentPw(e.target.value)} placeholder="Leave blank if you use Google sign-in"/>
-            </div>
-            <div className="field">
-              <label className="label">New Password</label>
-              <input className="input" type="password" value={newPw} onChange={e=>setNewPw(e.target.value)} required/>
-            </div>
-            <div className="field">
-              <label className="label">Confirm New Password</label>
-              <input className="input" type="password" value={confirmPw} onChange={e=>setConfirmPw(e.target.value)} required/>
-              {confirmPw && newPw !== confirmPw && <p className="form-error" style={{fontSize:'12px',marginTop:'4px'}}>Passwords don't match.</p>}
-            </div>
-            {accountError && <p className="form-error">{accountError}</p>}
-            <button className="btn-primary" type="submit" disabled={savingAccount || (confirmPw && newPw !== confirmPw)}>{savingAccount?'Saving…':'Save Password'}</button>
-          </form>
-        )}
-      </div>
-
-      {/* Appearance */}
-      <div className="section">
-        <div className="section-header">
-          <span className="section-title">Appearance</span>
-        </div>
-        <div className="tab-row" style={{marginBottom:'14px'}}>
-          <button className={user?.theme !== 'dark' ? 'tab active' : 'tab'} onClick={() => setTheme('light')} style={{display:'flex',alignItems:'center',gap:'6px',justifyContent:'center'}}><IconSun style={{width:'15px',height:'15px'}}/> Light</button>
-          <button className={user?.theme === 'dark' ? 'tab active' : 'tab'} onClick={() => setTheme('dark')} style={{display:'flex',alignItems:'center',gap:'6px',justifyContent:'center'}}><IconMoon style={{width:'15px',height:'15px'}}/> Dark</button>
-        </div>
-        <div className="item-meta" style={{marginBottom:'6px'}}>Map style (used when tracking a run, walk, or bike)</div>
-        <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
-          {Object.entries(MAP_STYLES).map(([key, s]) => (
-            <button key={key} type="button" className={mapStyle===key?'tab active':'tab'} onClick={()=>selectMapStyle(key)} style={{flex:'1 1 auto',minWidth:'80px'}}>
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Notifications */}
-      <div className="section">
-        <div className="section-header">
-          <span className="section-title">Notifications</span>
-        </div>
-        {pushStatus !== 'unsupported' && pushStatus !== 'denied' && (
-          <div className="list-item">
-            <div style={{flex:1}}>
-              <div className="item-main">Push notifications</div>
-              <div className="item-meta">{pushStatus === 'subscribed' ? 'Enabled on this device' : 'Off on this device'}</div>
-            </div>
-            <button className="btn-ghost-sm" onClick={togglePush}>{pushStatus === 'subscribed' ? 'Turn off' : 'Enable'}</button>
-          </div>
-        )}
-        {pushStatus === 'denied' && (
-          <p className="muted" style={{fontSize:'12px',marginBottom:'10px'}}>Notifications are blocked in your browser settings — enable them there first.</p>
-        )}
-        <label className="list-item" style={{cursor:'pointer'}}>
-          <div style={{flex:1}}>
-            <div className="item-main">Buzz from friends</div>
-            <div className="item-meta">A friend nudging you to work out</div>
-          </div>
-          <input type="checkbox" checked={user?.notifyBuzz !== false} onChange={toggleNotifyBuzz} style={{width:'18px',height:'18px',accentColor:'var(--accent)'}} />
-        </label>
-        <label className="list-item" style={{cursor:'pointer'}}>
-          <div style={{flex:1}}>
-            <div className="item-main">Messages</div>
-            <div className="item-meta">New direct messages from friends</div>
-          </div>
-          <input type="checkbox" checked={user?.notifyMessages !== false} onChange={toggleNotifyMessages} style={{width:'18px',height:'18px',accentColor:'var(--accent)'}} />
-        </label>
-        <label className="list-item" style={{cursor:'pointer'}}>
-          <div style={{flex:1}}>
-            <div className="item-main">Reactions</div>
-            <div className="item-meta">Someone reacts to your feed post</div>
-          </div>
-          <input type="checkbox" checked={user?.notifyReactions !== false} onChange={toggleNotifyReactions} style={{width:'18px',height:'18px',accentColor:'var(--accent)'}} />
-        </label>
-      </div>
-
-      {/* Meal & Workout Profile */}
-      <div className="section">
-        <div className="section-header">
-          <span className="section-title">Meal & Workout Profile</span>
-        </div>
-        <p className="muted" style={{fontSize:'12px',marginBottom:'12px'}}>Used to build your AI meal and workout plans.</p>
-        <div className="list-item clickable" onClick={()=>setShowProfileModal(true)} style={{cursor:'pointer'}}>
-          <div style={{flex:1}}>
-            <div className="item-main">{mwSummaryCount > 0 ? `${mwSummaryCount} detail${mwSummaryCount===1?'':'s'} saved` : 'Not set up yet'}</div>
-            <div className="item-meta">Tap to view, edit, or reset</div>
-          </div>
-          <IconChevron style={{width:'16px',height:'16px',color:'var(--muted)'}}/>
-        </div>
-      </div>
-
-      {showProfileModal && (
-        <ProfileEditModal
-          onClose={()=>setShowProfileModal(false)}
-          onSaved={(p)=>setMwSummaryCount(Object.values(p).filter(v => v && (!Array.isArray(v) || v.length>0)).length)}
-        />
-      )}
-
-      {/* Units */}
-      <div className="section">
-        <div className="section-header">
-          <span className="section-title">Units</span>
-        </div>
-        <div className="tab-row" style={{marginBottom:'10px'}}>
-          <button className={user?.weightUnit !== 'kg' ? 'tab active' : 'tab'} onClick={()=>setWeightUnit('lbs')}>Pounds (lbs)</button>
-          <button className={user?.weightUnit === 'kg' ? 'tab active' : 'tab'} onClick={()=>setWeightUnit('kg')}>Kilograms (kg)</button>
-        </div>
-        <div className="tab-row">
-          <button className={user?.distanceUnit !== 'km' ? 'tab active' : 'tab'} onClick={()=>setDistanceUnit('mi')}>Miles</button>
-          <button className={user?.distanceUnit === 'km' ? 'tab active' : 'tab'} onClick={()=>setDistanceUnit('km')}>Kilometers</button>
-        </div>
       </div>
 
       {/* Achievements */}
@@ -412,17 +241,15 @@ export default function Settings() {
                     transition:'all .15s',
                     WebkitTapHighlightColor:'transparent',
                   }}>
-                  {/* Icon */}
                   <div style={{
                     width:'48px', height:'48px', borderRadius:'12px', flexShrink:0,
-                    background: a.unlocked ? 'var(--surface-tint)' : 'var(--surface-tint)',
+                    background: 'var(--surface-tint)',
                     border: `1px solid ${a.unlocked ? 'rgba(224,122,95,0.25)' : 'var(--border)'}`,
                     display:'flex', alignItems:'center', justifyContent:'center',
                   }}>
                     <AchievementIcon id={a.id} active={a.unlocked} size={32}/>
                   </div>
 
-                  {/* Text */}
                   <div style={{flex:1, minWidth:0}}>
                     <div style={{
                       fontWeight:'700', fontSize:'14px',
@@ -435,7 +262,6 @@ export default function Settings() {
                     <div style={{fontSize:'12px',color:'var(--muted)',lineHeight:'1.4'}}>
                       {a.unlocked ? a.desc : HOW_TO[a.id] || a.desc}
                     </div>
-                    {/* Expanded how-to when locked */}
                     {!a.unlocked && expanded === a.id && (
                       <div style={{
                         marginTop:'8px', padding:'8px 10px',
@@ -449,7 +275,6 @@ export default function Settings() {
                     )}
                   </div>
 
-                  {/* Chevron */}
                   {!a.unlocked && (
                     <div style={{color:'var(--muted)',fontSize:'14px',flexShrink:0,transition:'transform .2s',transform: expanded===a.id ? 'rotate(90deg)' : 'none'}}>›</div>
                   )}
@@ -464,43 +289,6 @@ export default function Settings() {
             )}
           </>
         )}
-      </div>
-
-      {/* Nav shortcuts */}
-      <div className="settings-group" style={{marginBottom:'16px'}}>
-        {[
-          { label:'Dashboard',  path:'/dashboard' },
-          { label:'Feed',       path:'/feed'       },
-          { label:'Meal Plans', path:'/meals/plans' },
-          { label:'Social',     path:'/social'     },
-        ].map(({label,path}) => (
-          <div key={path} className="settings-item" onClick={() => navigate(path)}>
-            <span className="settings-label">{label}</span>
-            <IconChevron style={{width:'18px',height:'18px',color:'var(--muted)'}}/>
-          </div>
-        ))}
-      </div>
-
-      <div className="settings-group" style={{marginBottom:'16px'}}>
-        <div className="settings-item" onClick={() => navigate('/tutorial')}>
-          <span className="settings-label">Replay Tutorial</span>
-          <IconChevron style={{width:'18px',height:'18px',color:'var(--muted)'}}/>
-        </div>
-      </div>
-
-      {user?.isAdmin && (
-        <div className="settings-group" style={{marginBottom:'16px'}}>
-          <div className="settings-item" onClick={() => navigate('/admin')}>
-            <span className="settings-label" style={{color:'var(--accent)',fontWeight:'700'}}>Admin Panel</span>
-            <IconChevron style={{width:'18px',height:'18px',color:'var(--muted)'}}/>
-          </div>
-        </div>
-      )}
-
-      <div className="settings-group">
-        <div className="settings-item" onClick={() => { logout(); navigate('/'); }}>
-          <span className="settings-label" style={{color:'var(--danger)'}}>Log Out</span>
-        </div>
       </div>
     </div>
   );

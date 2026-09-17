@@ -19,7 +19,7 @@ export default function LogWorkout() {
         <WorkoutForm
           mode="create"
           initial={prefill?.initialExercises ? { exercises: prefill.initialExercises } : undefined}
-          onSubmit={(payload, photoFile) => api.logWorkout(payload, photoFile)}
+          onSubmit={(payload) => api.logWorkout(payload)}
         />
       </div>
     </div>

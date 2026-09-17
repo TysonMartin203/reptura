@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS Users (
   email         VARCHAR(100) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   avatar_url    VARCHAR(255) DEFAULT NULL,
+  feed_types    VARCHAR(100) DEFAULT NULL,
   created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -73,6 +74,16 @@ CREATE TABLE IF NOT EXISTS Friends (
   FOREIGN KEY (requester_id) REFERENCES Users(id) ON DELETE CASCADE,
   FOREIGN KEY (receiver_id)  REFERENCES Users(id) ON DELETE CASCADE,
   UNIQUE KEY uq_friends (requester_id, receiver_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS FeedMutes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  muted_user_id INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE,
+  FOREIGN KEY (muted_user_id) REFERENCES Users(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_feed_mute (user_id, muted_user_id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS Messages (

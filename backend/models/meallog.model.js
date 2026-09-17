@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { addFeedEvent } = require('./feed.model');
 
 function mergeMealData(existing, incoming) {
   const existingIngredients = existing.ingredients ? (typeof existing.ingredients === 'string' ? JSON.parse(existing.ingredients) : existing.ingredients) : [];
@@ -42,6 +43,12 @@ async function logMeal({ userId, date, mealType, name, calories, protein, carbs,
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [userId, date, mealType, name, calories || null, protein || null, carbs || null, fat || null, notes || null, ingredients ? JSON.stringify(ingredients) : null]
   );
+  const mealLabel = mealType ? mealType.charAt(0).toUpperCase() + mealType.slice(1) : 'a meal';
+  addFeedEvent({
+    userId, type: 'meal', refId: result.insertId,
+    headline: `logged ${mealLabel}${name ? ` — ${name}` : ''}`,
+    detail: calories ? `${Math.round(calories)} cal` : null,
+  }).catch(err => console.error('Feed event failed:', err));
   return result.insertId;
 }
 

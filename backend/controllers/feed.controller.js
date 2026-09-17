@@ -1,4 +1,4 @@
-const { getFeed, setReaction, removeReaction } = require('../models/feed.model');
+const { getFeed, setReaction, removeReaction, getFeedPrefs, setFeedTypes, muteFriend, unmuteFriend } = require('../models/feed.model');
 const { createNotification } = require('../models/notification.model');
 const { sendPushToUser } = require('../models/push.model');
 const { findById } = require('../models/user.model');
@@ -57,4 +57,48 @@ async function unreact(req, res) {
   }
 }
 
-module.exports = { list, react, unreact };
+const VALID_TYPES = ['workout', 'pr', 'challenge', 'meal'];
+
+async function getPrefs(req, res) {
+  try {
+    res.json(await getFeedPrefs(req.userId));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+async function updateTypes(req, res) {
+  try {
+    let { types } = req.body;
+    if (!Array.isArray(types)) return res.status(400).json({ error: 'types must be an array' });
+    types = types.filter(t => VALID_TYPES.includes(t));
+    const saved = await setFeedTypes(req.userId, types);
+    res.json({ feedTypes: saved });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+async function mute(req, res) {
+  try {
+    await muteFriend(req.userId, req.params.friendId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+async function unmute(req, res) {
+  try {
+    await unmuteFriend(req.userId, req.params.friendId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+module.exports = { list, react, unreact, getPrefs, updateTypes, mute, unmute };
