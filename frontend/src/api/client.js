@@ -147,6 +147,7 @@ export const api = {
   getWorkoutPlanTemplates: ()      => request('GET',  '/api/workout-plans/templates'),
   useWorkoutPlanTemplate:  (id,b)  => request('POST', `/api/workout-plans/templates/${id}`, b),
   getWorkoutPlans:  ()             => request('GET',  '/api/workout-plans'),
+  createInstacartShoppingList: (title, items) => request('POST', '/api/instacart/shopping-list', { title, items }),
   getWorkoutPlan:   (id)           => request('GET',  `/api/workout-plans/${id}`),
   renameWorkoutPlan:(id,b)         => request('PUT',  `/api/workout-plans/${id}/name`, b),
   favoriteWorkoutPlan: (id)        => request('PUT',  `/api/workout-plans/${id}/favorite`, {}),

@@ -6,9 +6,41 @@ import { IconSparkle, IconCheck, IconEdit, IconDollar, IconChefHat, IconStar, Ic
 import ProfileGateModal from '../components/ProfileGateModal';
 import KitchenIllustration from '../components/KitchenIllustration';
 import RestrictionPicker from '../components/RestrictionPicker';
+import { parseIngredientForInstacart } from '../instacartUnits';
 
 const GOALS = ['Cut (Lose Fat)','Bulk (Gain Muscle)','Maintain','Recomp'];
 const SECTIONS = ['Produce','Meat & Seafood','Dairy & Eggs','Bread & Grains','Canned & Dry Goods','Frozen','Condiments & Oils','Snacks & Nuts','Other'];
+
+// Common measurement/size words that show up right after a quantity —
+// stripped one full word at a time so the match can never run past a word
+// boundary into the actual food name (the bug this replaced: a single
+// greedy regex would eat past "chicken" and leave "breast, diced").
+const UNIT_WORDS = [
+  'cups?','tablespoons?','tbsp','teaspoons?','tsp','ounces?','oz','pounds?','lbs?','lb',
+  'grams?','g','kilograms?','kg','milliliters?','ml','liters?','l','quarts?','qt','pints?','pt',
+  'gallons?','gal','cans?','cloves?','slices?','pieces?','heads?','bunch(?:es)?','packages?','pkgs?',
+  'sticks?','fillets?','strips?','stalks?','sprigs?','pinch(?:es)?','dash(?:es)?','handfuls?',
+  'large','medium','small','whole',
+];
+const UNIT_RE = new RegExp(`^(${UNIT_WORDS.join('|')})\\b\\.?\\s*(of\\s+)?`, 'i');
+
+// Turns a full ingredient line into just the product name a store search
+// should use — Walmart won't stock the exact quantity a recipe calls for
+// anyway, so the quantity/unit is noise for search purposes, not signal.
+function extractItemName(ingredient) {
+  let name = ingredient.trim();
+  // Strip a leading quantity — digits, fractions ("1/2"), decimals, and
+  // ranges ("2-3") — as its own word, so this step alone can't touch the
+  // food name that follows.
+  name = name.replace(/^\d+[\d/.\-\s]*(?=\s|$)\s*/, '');
+  // Strip a leading unit/size word now that only the unit (if any) remains
+  // at the front.
+  name = name.replace(UNIT_RE, '');
+  // Drop trailing prep notes ("diced", "melted", "93% lean") — not useful
+  // for matching a shelf product, and often actively wrong to search for.
+  name = name.split(',')[0].replace(/\([^)]*\)/g, '').trim();
+  return name || ingredient.trim();
+}
 
 function categorize(ingredient) {
   const i = ingredient.toLowerCase();
@@ -31,7 +63,7 @@ function buildShoppingList(plan) {
       meal.ingredients?.forEach(ing => {
         const section = categorize(ing);
         if (!map[section]) map[section] = [];
-        const base = ing.replace(/^\d+[\s\/\w]*\s/,'').toLowerCase();
+        const base = extractItemName(ing).toLowerCase();
         if (!map[section].find(x => x.base === base)) map[section].push({ text: ing, base, checked: false });
       });
     });
@@ -43,6 +75,8 @@ function buildShoppingList(plan) {
 function ShoppingList({ plan }) {
   const [list, setList] = useState({});
   const [copied, setCopied] = useState(false);
+  const [instacartLoading, setInstacartLoading] = useState(false);
+  const [instacartError, setInstacartError] = useState('');
   useEffect(() => { setList(buildShoppingList(plan)); }, [plan]);
   function toggle(section, idx) { setList(l => ({...l,[section]:l[section].map((item,i)=>i!==idx?item:{...item,checked:!item.checked})})); }
   const sections = SECTIONS.filter(s => list[s]?.length > 0);
@@ -56,25 +90,36 @@ function ShoppingList({ plan }) {
     });
   }
 
+  async function openInstacart() {
+    setInstacartLoading(true); setInstacartError('');
+    try {
+      const items = unchecked.map(x => parseIngredientForInstacart(x.text));
+      const { url } = await api.createInstacartShoppingList(plan?.title || 'Reptura Shopping List', items);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      setInstacartError(err.message);
+    } finally {
+      setInstacartLoading(false);
+    }
+  }
+
   if (sections.length === 0) return <p className="muted">Shopping list will appear after generating a plan.</p>;
   return (
     <div>
       {unchecked.length > 0 && (
         <div className="glass-card" style={{marginBottom:'20px'}}>
-          <div style={{fontSize:'13px',fontWeight:'700',marginBottom:'4px'}}>Send to Walmart</div>
+          <div style={{fontSize:'13px',fontWeight:'700',marginBottom:'4px'}}>Send to Instacart</div>
           <p className="muted" style={{fontSize:'12px',marginBottom:'10px'}}>
-            Walmart doesn't support adding a whole list to your cart from another app — but each item below opens straight to its Walmart search so you can add it in a couple taps, and Copy List gives you a clean list to paste into Walmart's app search if you'd rather do it from there.
+            Builds one shoppable list with your exact quantities — pick a nearby store (Walmart included in most areas), review the cart, and choose delivery or pickup at checkout.
           </p>
-          <button type="button" className="btn-ghost-sm" onClick={copyList} style={{marginBottom:'10px'}}>
-            {copied ? 'Copied!' : `Copy List (${unchecked.length} item${unchecked.length===1?'':'s'})`}
-          </button>
-          <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
-            {unchecked.map((item, i) => (
-              <a key={i} href={`https://www.walmart.com/search?q=${encodeURIComponent(item.base)}`} target="_blank" rel="noopener noreferrer"
-                className="btn-ghost-sm" style={{textDecoration:'none',fontSize:'12px'}}>
-                {item.text} ↗
-              </a>
-            ))}
+          {instacartError && <p className="form-error" style={{fontSize:'12px',marginBottom:'10px'}}>{instacartError}</p>}
+          <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+            <button type="button" className="btn-primary" onClick={openInstacart} disabled={instacartLoading} style={{flex:'1 1 auto'}}>
+              {instacartLoading ? 'Building list…' : `Open in Instacart (${unchecked.length} item${unchecked.length===1?'':'s'})`}
+            </button>
+            <button type="button" className="btn-ghost-sm" onClick={copyList}>
+              {copied ? 'Copied!' : 'Copy List'}
+            </button>
           </div>
         </div>
       )}
