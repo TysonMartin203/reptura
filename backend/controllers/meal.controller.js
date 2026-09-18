@@ -3,6 +3,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { createNotification } = require('../models/notification.model');
 const { sendPushToUser } = require('../models/push.model');
 const { findById } = require('../models/user.model');
+const { buildStatsBlock } = require('../data/prompt-helpers');
 const { areFriends } = require('../models/friend.model');
 const { buildDeterministicRecipe } = require('../models/deterministic-recipe');
 
@@ -129,20 +130,9 @@ CRITICAL BUDGET RULES:
 ${familySection}
 
 User stats:
-- Current weight: ${weight || 'not provided'} lbs
-- Goal weight: ${goalWeight || 'not provided'} lbs
-- Goal: ${goal}
-- Timeline: ${timeline || 'not provided'} weeks
-- Activity level: ${activityLevel || 'not provided'}
-- Daily calorie goal (if given, target this closely instead of estimating your own): ${calorieGoal || 'not specified — estimate based on the stats above'}
-- Lifting PRs: ${prText}
-- Dietary restrictions: ${restrictions.length > 0 ? restrictions.join(', ') : 'none'}
-- Foods to avoid: ${dislikes || 'none'}
-- Foods to include: ${wantedFoods || 'none'}
-- Available appliances: ${applianceText}
-- Additional notes from the user: ${notes || 'none'}
+${buildStatsBlock(req.body, { prs: prText, appliances: applianceText })}
 
-Only suggest recipes makeable with the listed appliances. Unless the user has requested specific foods, default to universally popular, crowd-pleasing meals that most people enjoy — things like chicken and rice, pasta, tacos, burgers, eggs, stir fry, sandwiches, oatmeal, and similar widely-liked foods. Avoid niche or polarizing ingredients like tofu, tempeh, liver, anchovies, Brussels sprouts, or bitter greens unless explicitly requested.
+Only suggest recipes makeable with the listed appliances. Unless specific foods were requested, default to popular, crowd-pleasing meals (chicken and rice, pasta, tacos, burgers, eggs, stir fry, sandwiches, oatmeal). Avoid niche or polarizing ingredients (tofu, tempeh, liver, anchovies, Brussels sprouts, bitter greens) unless requested.
 
 Return ONLY valid JSON, no markdown. Structure:
 {
@@ -218,20 +208,9 @@ CRITICAL BUDGET RULES:
 - Balance this with variety: reusing an INGREDIENT across the week is good (keeps cost down), but avoid serving the same or a near-identical MEAL back-to-back or on consecutive days
 
 Updated user stats:
-- Current weight: ${weight || 'not provided'} lbs
-- Goal weight: ${goalWeight || 'not provided'} lbs
-- Goal: ${goal || 'not provided'}
-- Timeline: ${timeline || 'not provided'} weeks
-- Activity level: ${activityLevel || 'not provided'}
-- Daily calorie goal (if given, target this closely instead of estimating your own): ${calorieGoal || 'not specified — estimate based on the stats above'}
-- Lifting PRs: ${prText}
-- Dietary restrictions: ${restrictions.length > 0 ? restrictions.join(', ') : 'none'}
-- Foods to avoid: ${dislikes || 'none'}
-- Foods to include: ${wantedFoods || 'none'}
-- Available appliances: ${applianceText}
-- Additional notes from the user: ${notes || 'none'}
+${buildStatsBlock(req.body, { prs: prText, appliances: applianceText })}
 
-Only suggest recipes makeable with the listed appliances. Unless the user has requested specific foods, default to universally popular, crowd-pleasing meals that most people enjoy — things like chicken and rice, pasta, tacos, burgers, eggs, stir fry, sandwiches, oatmeal, and similar widely-liked foods. Avoid niche or polarizing ingredients like tofu, tempeh, liver, anchovies, Brussels sprouts, or bitter greens unless explicitly requested.
+Only suggest recipes makeable with the listed appliances. Unless specific foods were requested, default to popular, crowd-pleasing meals (chicken and rice, pasta, tacos, burgers, eggs, stir fry, sandwiches, oatmeal). Avoid niche or polarizing ingredients (tofu, tempeh, liver, anchovies, Brussels sprouts, bitter greens) unless requested.
 
 Return ONLY valid JSON, no markdown. Same structure as before:
 {
@@ -496,16 +475,7 @@ async function generateDayPlan(req, res) {
     const prompt = `You are a certified nutritionist. Create ${days} day${days>1?'s':''} of meals (Breakfast, Lunch, Dinner, one Snack per day) as JSON. Day labels, in order: ${dayLabels.join(', ')}.
 
 User stats:
-- Current weight: ${weight || 'not provided'} lbs
-- Goal weight: ${goalWeight || 'not provided'} lbs
-- Goal: ${goal || 'not provided'}
-- Activity level: ${activityLevel || 'not provided'}
-- Daily calorie goal (if given, target this closely): ${calorieGoal || 'not specified — estimate based on the stats above'}
-- Dietary restrictions: ${restrictions.length > 0 ? restrictions.join(', ') : 'none'}
-- Foods to avoid: ${dislikes || 'none'}
-- Foods to include: ${wantedFoods || 'none'}
-- Available appliances: ${applianceText}
-- Additional notes: ${notes || 'none'}
+${buildStatsBlock(req.body, { appliances: applianceText })}
 
 Keep it affordable and only use the listed appliances. Default to universally popular, crowd-pleasing meals unless the user requested specific foods.${days > 1 ? ' Reuse proteins and staple ingredients across the days to keep the grocery list short, but avoid repeating the same or a near-identical meal on consecutive days.' : ''}
 

@@ -4,6 +4,7 @@ const TEMPLATES = require('../data/workout-plan-templates');
 const { createNotification } = require('../models/notification.model');
 const { sendPushToUser } = require('../models/push.model');
 const { findById } = require('../models/user.model');
+const { buildStatsBlock } = require('../data/prompt-helpers');
 const { areFriends } = require('../models/friend.model');
 const { EXERCISE_DESCRIPTIONS } = require('../data/exercise-descriptions');
 const { reorderExercisesByMuscleGroup } = require('../data/muscleGroups');
@@ -153,12 +154,7 @@ async function generate(req, res) {
       const prompt = `You are a certified strength coach. Build ONE well-structured workout session as JSON, tailored to this person.
 
 User stats:
-- Current weight: ${weight || 'not provided'} lbs
-- Goal weight: ${goalWeight || 'not provided'} lbs
-- Goal: ${goal || 'general fitness'}
-- Activity level: ${activityLevel || 'not provided'}
-- Current lifting PRs: ${prText}
-- What they want from today's session / any notes (goals, injuries, preferences): ${notes || 'none specified — pick something sensible and well-rounded'}
+${buildStatsBlock(req.body, { prs: prText })}
 
 Pick a sensible focus for a single session (e.g. Push, Pull, Legs, Full Body, or whatever the notes suggest). If notes mention an injury or limitation, avoid exercises that would aggravate it. For each exercise give sets and a rep range as a string (e.g. "8-10"). Use common gym exercise names.
 
@@ -188,13 +184,7 @@ Return ONLY valid JSON, no markdown:
     const prompt = `You are a certified strength coach. Build a 7-day weekly workout split as JSON, tailored to this person.
 
 User stats:
-- Current weight: ${weight || 'not provided'} lbs
-- Goal weight: ${goalWeight || 'not provided'} lbs
-- Goal: ${goal || 'general fitness'}
-- Timeline: ${timeline || 'not provided'} weeks
-- Activity level: ${activityLevel || 'not provided'}
-- Current lifting PRs: ${prText}
-- Additional notes from the user (goals, injuries, preferences): ${notes || 'none'}
+${buildStatsBlock(req.body, { prs: prText })}
 
 Choose a sensible split (e.g. Push/Pull/Legs, Upper/Lower, Full Body, or a bro split) based on their goal. If the notes mention an injury or limitation, avoid exercises that would aggravate it. Include rest days appropriately — this is a full week, so not every day should be a training day. For each exercise give sets and a rep range as a string (e.g. "8-10"). Use common gym exercise names.
 
@@ -253,13 +243,7 @@ async function regenerate(req, res) {
     const prompt = `You are a certified strength coach. The user already has a workout plan called "${existing.name}" but wants it rebuilt based on updated info. Build a fresh 7-day weekly workout split as JSON.
 
 Updated user stats:
-- Current weight: ${weight || 'not provided'} lbs
-- Goal weight: ${goalWeight || 'not provided'} lbs
-- Goal: ${goal || 'general fitness'}
-- Timeline: ${timeline || 'not provided'} weeks
-- Activity level: ${activityLevel || 'not provided'}
-- Current lifting PRs: ${prText}
-- Additional notes from the user (goals, injuries, preferences): ${notes || 'none'}
+${buildStatsBlock(req.body, { prs: prText })}
 
 Choose a sensible split based on their goal. If the notes mention an injury or limitation, avoid exercises that would aggravate it. Include rest days appropriately. For each exercise give sets and a rep range as a string (e.g. "8-10"). Use common gym exercise names.
 

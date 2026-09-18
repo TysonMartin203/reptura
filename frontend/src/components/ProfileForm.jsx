@@ -52,6 +52,16 @@ export default function ProfileForm({ profile, setProfile }) {
       </div>
       <div className="input-row">
         <div className="input-group">
+          <label className="label">Height (ft)</label>
+          <input className="input" type="number" min="0" placeholder="5" value={profile.heightFeet || ''} onChange={e=>setProfile(p=>({...p,heightFeet:e.target.value}))}/>
+        </div>
+        <div className="input-group">
+          <label className="label">Height (in)</label>
+          <input className="input" type="number" min="0" max="11" placeholder="10" value={profile.heightInches || ''} onChange={e=>setProfile(p=>({...p,heightInches:e.target.value}))}/>
+        </div>
+      </div>
+      <div className="input-row">
+        <div className="input-group">
           <label className="label">Goal</label>
           <select className="input" value={profile.goal || GOALS[2]} onChange={e=>setProfile(p=>({...p,goal:e.target.value}))}>
             {GOALS.map(g => <option key={g} value={g}>{g}</option>)}
