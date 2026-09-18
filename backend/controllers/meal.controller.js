@@ -36,6 +36,7 @@ async function ensureTable() {
   // Migrate old single-plan table if needed (add missing columns)
   await pool.query(`ALTER TABLE MealPlans ADD COLUMN IF NOT EXISTS name VARCHAR(100) NOT NULL DEFAULT 'My Meal Plan'`).catch(()=>{});
   await pool.query(`ALTER TABLE MealPlans ADD COLUMN IF NOT EXISTS is_favorite TINYINT(1) NOT NULL DEFAULT 0`).catch(()=>{});
+  await pool.query(`ALTER TABLE MealPlans ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT NULL`).catch(()=>{});
   await pool.query(`ALTER TABLE MealPlans ADD COLUMN IF NOT EXISTS created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`).catch(()=>{});
   // Remove unique constraint if it exists (allow multiple plans per user).
   // Add a plain (non-unique) index first so the foreign key has something
@@ -49,7 +50,7 @@ async function listPlans(req, res) {
   try {
     await ensureTable();
     const [rows] = await pool.query(
-      'SELECT id, name, is_favorite, created_at, JSON_EXTRACT(plan, "$.daily_calories") as daily_calories FROM MealPlans WHERE user_id = ? ORDER BY is_favorite DESC, created_at DESC',
+      'SELECT id, name, is_favorite, category, created_at, JSON_EXTRACT(plan, "$.daily_calories") as daily_calories FROM MealPlans WHERE user_id = ? ORDER BY is_favorite DESC, created_at DESC',
       [req.userId]
     );
     res.json({ plans: rows });
@@ -96,11 +97,25 @@ async function generate(req, res) {
   try {
     await ensureTable();
     const client = getClient();
-    const { weight, goalWeight, goal, timeline, activityLevel = '', calorieGoal = '', restrictions = [], dislikes = '', wantedFoods = '', appliances = [], notes = '', planName = 'My Meal Plan' } = req.body;
+    const { weight, goalWeight, goal, timeline, activityLevel = '', calorieGoal = '', restrictions = [], dislikes = '', wantedFoods = '', appliances = [], notes = '', planName = 'My Meal Plan', familyMembers = [] } = req.body;
 
     const [prs] = await pool.query('SELECT exercise, max_weight FROM PRs WHERE user_id = ? LIMIT 5', [req.userId]);
     const prText = prs.length > 0 ? prs.map(p => `${p.exercise}: ${p.max_weight}lbs`).join(', ') : 'Not provided';
     const applianceText = appliances.length > 0 ? appliances.join(', ') : 'stovetop, oven, microwave (assume basic)';
+
+    const isFamily = Array.isArray(familyMembers) && familyMembers.length > 0;
+    const familyText = isFamily
+      ? familyMembers.map(m => `${m.name}${m.age ? ` (age ${m.age})` : ''}${m.weight ? `, ${m.weight}lbs` : ''}${m.goal ? `, goal: ${m.goal}` : ''}`).join('; ')
+      : '';
+    const familySection = isFamily ? `
+
+FAMILY MEAL PLAN — this plan must work for the whole household eating together, not just one person:
+- Household members besides the primary user: ${familyText}
+- Build ONE shared meal per slot (e.g. one dinner the whole family eats), not separate meals per person — that keeps cooking and grocery cost down
+- Note portion guidance by age where it matters (young children typically need noticeably smaller portions than adults — call this out in the meal notes or ingredients when relevant, e.g. "kids: half portion")
+- Keep meals kid-friendly and broadly appealing — avoid anything a picky child is likely to refuse, unless the household's notes say otherwise
+- If household members have different goals (e.g. one adult cutting, a child just eating normally), the shared base meal should suit everyone, with an optional simple add-on noted for whoever needs more (e.g. "add an extra scoop of rice for higher-calorie goals") rather than building separate dishes
+- Still respect every dietary restriction listed below — assume they apply to whoever in the household has them unless stated otherwise` : '';
 
     const prompt = `You are a certified nutritionist and personal trainer. Create a budget-friendly 7-day meal plan as JSON.
 
@@ -109,8 +124,9 @@ CRITICAL BUDGET RULES:
 - Prioritize affordable proteins: eggs, canned tuna, chicken thighs, ground turkey, beans, lentils
 - Use seasonal/affordable produce: carrots, cabbage, bananas, apples, frozen vegetables
 - Staple grains: oats, rice, pasta, bread — use repeatedly across different meals
-- Keep weekly grocery cost under $75-100 for one person
+- Keep weekly grocery cost under ${isFamily ? '$150-200 for the household' : '$75-100 for one person'}
 - Balance this with variety: reusing an INGREDIENT across the week is good (keeps cost down), but avoid serving the same or a near-identical MEAL back-to-back or on consecutive days — vary the preparation, seasoning, or pairing so it doesn't feel repetitive day to day, even when the underlying ingredients are shared
+${familySection}
 
 User stats:
 - Current weight: ${weight || 'not provided'} lbs
@@ -163,9 +179,10 @@ Include Breakfast, Lunch, Dinner, and one Snack per day for all 7 days.`;
     text = text.replace(/^```json\s*/,'').replace(/\s*```$/,'').trim();
     const plan = JSON.parse(text);
 
+    const category = isFamily ? 'Family Plan' : null;
     const [result] = await pool.query(
-      'INSERT INTO MealPlans (user_id, name, profile, plan) VALUES (?, ?, ?, ?)',
-      [req.userId, planName, JSON.stringify(req.body), JSON.stringify(plan)]
+      'INSERT INTO MealPlans (user_id, name, profile, plan, category) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, planName, JSON.stringify(req.body), JSON.stringify(plan), category]
     );
 
     res.json({ plan, planId: result.insertId, planName });
@@ -198,6 +215,7 @@ CRITICAL BUDGET RULES:
 - Reuse proteins across multiple days
 - Prioritize affordable proteins: eggs, canned tuna, chicken thighs, ground turkey, beans, lentils
 - Keep weekly grocery cost under $75-100 for one person
+- Balance this with variety: reusing an INGREDIENT across the week is good (keeps cost down), but avoid serving the same or a near-identical MEAL back-to-back or on consecutive days
 
 Updated user stats:
 - Current weight: ${weight || 'not provided'} lbs
@@ -212,6 +230,8 @@ Updated user stats:
 - Foods to include: ${wantedFoods || 'none'}
 - Available appliances: ${applianceText}
 - Additional notes from the user: ${notes || 'none'}
+
+Only suggest recipes makeable with the listed appliances. Unless the user has requested specific foods, default to universally popular, crowd-pleasing meals that most people enjoy — things like chicken and rice, pasta, tacos, burgers, eggs, stir fry, sandwiches, oatmeal, and similar widely-liked foods. Avoid niche or polarizing ingredients like tofu, tempeh, liver, anchovies, Brussels sprouts, or bitter greens unless explicitly requested.
 
 Return ONLY valid JSON, no markdown. Same structure as before:
 {

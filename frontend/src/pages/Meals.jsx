@@ -601,6 +601,34 @@ export default function Meals() {
   const [singleMealType, setSingleMealType] = useState('Lunch');
   const [craving,    setCraving]    = useState('');
   const [singleResult, setSingleResult] = useState(null);
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [planForFamily, setPlanForFamily] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState([]);
+  const [familyLoaded, setFamilyLoaded] = useState(false);
+  const [newMember, setNewMember] = useState({ name:'', age:'', weight:'', goal: GOALS[2] });
+  const [addingMember, setAddingMember] = useState(false);
+
+  function loadFamilyMembers() {
+    if (familyLoaded) return;
+    api.getFamilyMembers().then(d => { setFamilyMembers(d.members || []); setFamilyLoaded(true); }).catch(()=>{});
+  }
+
+  async function addFamilyMember(e) {
+    e.preventDefault();
+    if (!newMember.name.trim()) return;
+    setAddingMember(true);
+    try {
+      const { id } = await api.addFamilyMember(newMember);
+      setFamilyMembers(m => [...m, { ...newMember, id }]);
+      setNewMember({ name:'', age:'', weight:'', goal: GOALS[2] });
+    } catch (err) { setError(err.message); }
+    finally { setAddingMember(false); }
+  }
+
+  async function removeFamilyMember(id) {
+    setFamilyMembers(m => m.filter(x => x.id !== id));
+    try { await api.deleteFamilyMember(id); } catch (err) { setError(err.message); }
+  }
 
   useEffect(() => {
     loadPlans();
@@ -627,7 +655,7 @@ export default function Meals() {
         setActivePlan(data.planId);
         setView('detail');
       } else {
-        const data = await api.generateMealPlan(profile);
+        const data = await api.generateMealPlan({ ...profile, familyMembers: planForFamily ? familyMembers : [] });
         const { planName, ...profileToSave } = profile;
         api.saveProfile(profileToSave).catch(()=>{});
         loadPlans();
@@ -757,6 +785,52 @@ export default function Meals() {
             </div>
           )}
 
+          {planScope === 'week' && (
+            <div className="card-form">
+              <label style={{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer'}}>
+                <input type="checkbox" checked={planForFamily}
+                  onChange={e=>{ setPlanForFamily(e.target.checked); if (e.target.checked) loadFamilyMembers(); }}
+                  style={{width:'18px',height:'18px',accentColor:'var(--accent)'}} />
+                <span style={{fontWeight:'700',fontSize:'14px'}}>Plan for my family</span>
+              </label>
+              {planForFamily && (
+                <div style={{marginTop:'14px'}}>
+                  <p className="muted" style={{fontSize:'12px',marginBottom:'10px'}}>
+                    One shared plan the whole household eats — add everyone besides yourself, and I'll size portions and keep it kid-friendly.
+                  </p>
+                  {familyMembers.map(m => (
+                    <div key={m.id} className="list-item" style={{marginBottom:'6px'}}>
+                      <div style={{flex:1}}>
+                        <div className="item-main">{m.name}</div>
+                        <div className="item-meta">
+                          {[m.age && `age ${m.age}`, m.weight && `${m.weight} lbs`, m.goal].filter(Boolean).join(' · ') || 'No details added'}
+                        </div>
+                      </div>
+                      <button type="button" className="btn-ghost-sm" onClick={()=>removeFamilyMember(m.id)}>
+                        <IconTrash style={{width:'14px',height:'14px'}}/>
+                      </button>
+                    </div>
+                  ))}
+                  <div style={{border:'1px solid var(--border)',borderRadius:'var(--r-sm)',padding:'12px',marginTop:'10px'}}>
+                    <div className="input-row" style={{marginBottom:'8px'}}>
+                      <input className="input" placeholder="Name" value={newMember.name} onChange={e=>setNewMember(n=>({...n,name:e.target.value}))} style={{flex:2}}/>
+                      <input className="input" type="number" placeholder="Age" value={newMember.age} onChange={e=>setNewMember(n=>({...n,age:e.target.value}))} style={{flex:1}}/>
+                    </div>
+                    <div className="input-row" style={{marginBottom:'8px'}}>
+                      <input className="input" type="number" placeholder="Weight (lbs, optional)" value={newMember.weight} onChange={e=>setNewMember(n=>({...n,weight:e.target.value}))} style={{flex:1}}/>
+                      <select className="input" value={newMember.goal} onChange={e=>setNewMember(n=>({...n,goal:e.target.value}))} style={{flex:1}}>
+                        {GOALS.map(g=><option key={g}>{g}</option>)}
+                      </select>
+                    </div>
+                    <button type="button" className="btn-ghost-sm" onClick={addFamilyMember} disabled={addingMember || !newMember.name.trim()}>
+                      {addingMember ? 'Adding…' : '+ Add Family Member'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="card-form">
             <label className="label" style={{display:'block',marginBottom:'10px'}}>Dietary Restrictions</label>
             <RestrictionPicker value={profile.restrictions} onChange={v=>setProfile(p=>({...p,restrictions:v}))}/>
@@ -811,6 +885,14 @@ export default function Meals() {
     </svg>
   );
 
+  const favoritePlans = plans.filter(p => p.is_favorite);
+  const familyPlans = plans.filter(p => p.category === 'Family Plan');
+  const templateCategories = [...new Set(templates.map(t => t.category))];
+  const categoryTabs = ['My Favorites', ...(familyPlans.length > 0 ? ['Family Plan'] : []), 'All', ...templateCategories];
+  const visibleTemplates = activeCategory === 'All' || activeCategory === 'My Favorites' || activeCategory === 'Family Plan'
+    ? templates
+    : templates.filter(t => t.category === activeCategory);
+
   return (
     <div className="page">
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'24px'}}>
@@ -856,35 +938,82 @@ export default function Meals() {
         </div>
       )}
 
-      {/* Template plans — always visible, no delete */}
+      {/* Browse Plans — category tabs, with My Favorites and All pinned first */}
       {templates.length > 0 && (
         <div className="section">
           <div className="section-header">
-            <span className="section-title">Starter Plans</span>
-            <span style={{fontSize:'12px',color:'var(--muted)'}}>Ready to use</span>
+            <span className="section-title">Browse Plans</span>
           </div>
-          <div className="form-stack">
-            {templates.map(t => (
-              <div key={t.id} className="glass-card" style={{cursor:'pointer'}}
-                onClick={()=>{setActivePlan('tmpl:'+t.id);setView('detail');}}>
-                <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-                  <div style={{
-                    width:'44px',height:'44px',borderRadius:'12px',flexShrink:0,
-                    background:'var(--surface-tint)',border:'1px solid var(--border)',
-                    display:'flex',alignItems:'center',justifyContent:'center',color:'var(--teal)',
-                  }}><MealPlanIcon id={t.icon} size={22} /></div>
-                  <div style={{flex:1}}>
-                    <div style={{fontWeight:'700',fontSize:'15px',marginBottom:'2px'}}>{t.name}</div>
-                    <div style={{fontSize:'12px',color:'var(--muted)'}}>
-                      {t.daily_calories} cal/day
-                      <span style={{marginLeft:'8px',color:'var(--teal)',fontWeight:'600',fontSize:'11px',textTransform:'uppercase',letterSpacing:'.04em'}}>{t.category}</span>
-                    </div>
-                  </div>
-                  <span style={{color:'var(--muted)',fontSize:'16px'}}>›</span>
-                </div>
-              </div>
+          <div style={{display:'flex',gap:'6px',overflowX:'auto',paddingBottom:'10px',marginBottom:'14px',WebkitOverflowScrolling:'touch'}}>
+            {categoryTabs.map(cat => (
+              <button key={cat} type="button" className={activeCategory===cat ? 'tab active' : 'tab'}
+                style={{flexShrink:0,whiteSpace:'nowrap'}} onClick={()=>setActiveCategory(cat)}>
+                {cat}
+              </button>
             ))}
           </div>
+
+          {activeCategory === 'My Favorites' ? (
+            favoritePlans.length === 0 ? (
+              <p className="muted" style={{fontSize:'13px'}}>No favorites yet — tap the star on any plan in "My Plans" to add it here.</p>
+            ) : (
+              <div className="form-stack">
+                {favoritePlans.map(plan => (
+                  <div key={plan.id} className="glass-card" style={{cursor:'pointer'}}
+                    onClick={()=>{setActivePlan(plan.id);setView('detail');}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:'700',fontSize:'15px',marginBottom:'3px'}}>{plan.name}</div>
+                        <div style={{fontSize:'12px',color:'var(--muted)'}}>
+                          {plan.daily_calories ? `${plan.daily_calories} cal/day` : ''}
+                        </div>
+                      </div>
+                      <IconStar filled style={{width:'18px',height:'18px',color:'var(--accent)',flexShrink:0}}/>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : activeCategory === 'Family Plan' ? (
+            <div className="form-stack">
+              {familyPlans.map(plan => (
+                <div key={plan.id} className="glass-card" style={{cursor:'pointer'}}
+                  onClick={()=>{setActivePlan(plan.id);setView('detail');}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:'700',fontSize:'15px',marginBottom:'3px'}}>{plan.name}</div>
+                      <div style={{fontSize:'12px',color:'var(--muted)'}}>
+                        {plan.daily_calories ? `${plan.daily_calories} cal/day` : ''}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="form-stack">
+              {visibleTemplates.map(t => (
+                <div key={t.id} className="glass-card" style={{cursor:'pointer'}}
+                  onClick={()=>{setActivePlan('tmpl:'+t.id);setView('detail');}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
+                    <div style={{
+                      width:'44px',height:'44px',borderRadius:'12px',flexShrink:0,
+                      background:'var(--surface-tint)',border:'1px solid var(--border)',
+                      display:'flex',alignItems:'center',justifyContent:'center',color:'var(--teal)',
+                    }}><MealPlanIcon id={t.icon} size={22} /></div>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:'700',fontSize:'15px',marginBottom:'2px'}}>{t.name}</div>
+                      <div style={{fontSize:'12px',color:'var(--muted)'}}>
+                        {t.daily_calories} cal/day
+                        {activeCategory === 'All' && <span style={{marginLeft:'8px',color:'var(--teal)',fontWeight:'600',fontSize:'11px',textTransform:'uppercase',letterSpacing:'.04em'}}>{t.category}</span>}
+                      </div>
+                    </div>
+                    <span style={{color:'var(--muted)',fontSize:'16px'}}>›</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
