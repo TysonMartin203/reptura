@@ -9,11 +9,22 @@ fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const app = express();
 
-const allowedOrigins = ['http://localhost:5173', process.env.CLIENT_URL].filter(Boolean);
+// CLIENT_URL accepts a comma-separated list so the app can be reached from
+// more than one origin at once — e.g. the custom domain, its www variant,
+// and the original netlify.app URL (handy as a fallback if DNS ever breaks).
+// A browser treats each of those as a distinct origin, so every one the app
+// is actually served from has to be listed or its API calls get blocked.
+const allowedOrigins = [
+  'http://localhost:5173',
+  ...(process.env.CLIENT_URL || '').split(',').map(s => s.trim()).filter(Boolean),
+];
 
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    // Log the rejected origin — otherwise a CORS block just shows up in the
+    // browser as an opaque "Load failed" with nothing server-side to go on.
+    console.warn('Blocked by CORS:', origin, '— allowed:', allowedOrigins.join(', '));
     cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
