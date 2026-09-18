@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { IconChevron, IconSun, IconMoon } from '../components/Icons';
@@ -17,10 +17,69 @@ const FEED_TYPES = [
 export default function AccountSettings() {
   const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [pushStatus,   setPushStatus]   = useState('unknown');
   const [mwSummaryCount, setMwSummaryCount] = useState(0);
   const [mapStyle, setMapStyle] = useState(getSavedMapStyle);
   const [error, setError] = useState('');
+
+  // Kroger connection
+  const [krogerStatus, setKrogerStatus] = useState({ connected: false, locationId: null, locationName: null });
+  const [krogerLoading, setKrogerLoading] = useState(true);
+  const [krogerMsg, setKrogerMsg] = useState('');
+  const [zip, setZip] = useState('');
+  const [storeOptions, setStoreOptions] = useState([]);
+  const [searchingStores, setSearchingStores] = useState(false);
+
+  function loadKrogerStatus() {
+    api.getKrogerStatus().then(setKrogerStatus).catch(()=>{}).finally(()=>setKrogerLoading(false));
+  }
+
+  useEffect(() => {
+    loadKrogerStatus();
+    const flag = searchParams.get('kroger');
+    if (flag === 'connected') setKrogerMsg('Kroger account connected!');
+    else if (flag === 'denied') setKrogerMsg('Kroger connection was cancelled.');
+    else if (flag === 'error') setKrogerMsg("Something went wrong connecting Kroger — please try again.");
+    if (flag) {
+      searchParams.delete('kroger');
+      setSearchParams(searchParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function connectKroger() {
+    try {
+      const { url } = await api.getKrogerConnectUrl();
+      window.location.href = url;
+    } catch (err) { setError(err.message); }
+  }
+
+  async function disconnectKroger() {
+    try {
+      await api.disconnectKroger();
+      setKrogerStatus({ connected: false, locationId: null, locationName: null });
+      setStoreOptions([]);
+    } catch (err) { setError(err.message); }
+  }
+
+  async function findStores(e) {
+    e.preventDefault();
+    setSearchingStores(true); setError('');
+    try {
+      const { stores } = await api.searchKrogerStores(zip);
+      setStoreOptions(stores);
+    } catch (err) { setError(err.message); }
+    finally { setSearchingStores(false); }
+  }
+
+  async function pickStore(store) {
+    try {
+      await api.setKrogerLocation(store.locationId, store.name);
+      setKrogerStatus(s => ({ ...s, locationId: store.locationId, locationName: store.name }));
+      setStoreOptions([]);
+    } catch (err) { setError(err.message); }
+  }
 
   // Feed preferences
   const [feedTypes, setFeedTypesState] = useState(null); // null = all types shown
@@ -360,6 +419,47 @@ export default function AccountSettings() {
                     style={{width:'18px',height:'18px',accentColor:'var(--accent)'}} />
                 </label>
               ))
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Kroger connection */}
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Kroger</span>
+        </div>
+        <p className="muted" style={{fontSize:'12px',marginBottom:'12px'}}>Connect your Kroger account (also covers Ralphs, Fred Meyer, King Soopers, Smith's, Fry's, and other Kroger-family stores) to add a meal plan's shopping list straight into your Kroger cart.</p>
+        {krogerMsg && <p className={krogerStatus.connected ? 'form-success' : 'muted'} style={{fontSize:'12px',marginBottom:'10px'}}>{krogerMsg}</p>}
+        {error && <p className="form-error" style={{fontSize:'12px',marginBottom:'10px'}}>{error}</p>}
+
+        {krogerLoading ? <div className="spinner" style={{margin:'10px auto'}}/> : !krogerStatus.connected ? (
+          <button className="btn-secondary" onClick={connectKroger}>Connect Kroger Account</button>
+        ) : (
+          <>
+            <div className="list-item" style={{marginBottom:'10px'}}>
+              <div style={{flex:1}}>
+                <div className="item-main">Connected</div>
+                <div className="item-meta">{krogerStatus.locationName || 'No store selected yet'}</div>
+              </div>
+              <button className="btn-ghost-sm" onClick={disconnectKroger}>Disconnect</button>
+            </div>
+
+            <form onSubmit={findStores} style={{display:'flex',gap:'8px',marginBottom:'10px'}}>
+              <input className="input" placeholder="ZIP code" value={zip} onChange={e=>setZip(e.target.value)} style={{flex:1}}/>
+              <button className="btn-ghost-sm" type="submit" disabled={searchingStores}>{searchingStores ? 'Searching…' : (krogerStatus.locationId ? 'Change Store' : 'Find Stores')}</button>
+            </form>
+            {storeOptions.length > 0 && (
+              <div style={{border:'1px solid var(--border)',borderRadius:'var(--r-sm)',overflow:'hidden'}}>
+                {storeOptions.map(s => (
+                  <div key={s.locationId} className="list-item clickable" style={{cursor:'pointer'}} onClick={()=>pickStore(s)}>
+                    <div style={{flex:1}}>
+                      <div className="item-main">{s.name}</div>
+                      <div className="item-meta">{s.address}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </>
         )}

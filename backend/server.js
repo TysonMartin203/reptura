@@ -42,6 +42,7 @@ app.use('/api/profile',      require('./routes/profile.routes'));
 app.use('/api/workout-plans', require('./routes/workoutplan.routes'));
 app.use('/api/instacart',    require('./routes/instacart.routes'));
 app.use('/api/family-members', require('./routes/family.routes'));
+app.use('/api/kroger',       require('./routes/kroger.routes'));
 app.use('/api/users',        require('./routes/user.routes'));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));

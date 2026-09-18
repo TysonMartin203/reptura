@@ -77,7 +77,12 @@ function ShoppingList({ plan }) {
   const [copied, setCopied] = useState(false);
   const [instacartLoading, setInstacartLoading] = useState(false);
   const [instacartError, setInstacartError] = useState('');
+  const [krogerStatus, setKrogerStatus] = useState(null);
+  const [krogerLoading, setKrogerLoading] = useState(false);
+  const [krogerError, setKrogerError] = useState('');
+  const [krogerResult, setKrogerResult] = useState(null);
   useEffect(() => { setList(buildShoppingList(plan)); }, [plan]);
+  useEffect(() => { api.getKrogerStatus().then(setKrogerStatus).catch(()=>{}); }, []);
   function toggle(section, idx) { setList(l => ({...l,[section]:l[section].map((item,i)=>i!==idx?item:{...item,checked:!item.checked})})); }
   const sections = SECTIONS.filter(s => list[s]?.length > 0);
   const unchecked = sections.flatMap(s => list[s].filter(x => !x.checked));
@@ -103,6 +108,19 @@ function ShoppingList({ plan }) {
     }
   }
 
+  async function addToKroger() {
+    setKrogerLoading(true); setKrogerError(''); setKrogerResult(null);
+    try {
+      const items = unchecked.map(x => parseIngredientForInstacart(x.text));
+      const result = await api.addToKrogerCart(items);
+      setKrogerResult(result);
+    } catch (err) {
+      setKrogerError(err.message);
+    } finally {
+      setKrogerLoading(false);
+    }
+  }
+
   if (sections.length === 0) return <p className="muted">Shopping list will appear after generating a plan.</p>;
   return (
     <div>
@@ -110,7 +128,7 @@ function ShoppingList({ plan }) {
         <div className="glass-card" style={{marginBottom:'20px'}}>
           <div style={{fontSize:'13px',fontWeight:'700',marginBottom:'4px'}}>Send to Instacart</div>
           <p className="muted" style={{fontSize:'12px',marginBottom:'10px'}}>
-            Builds one shoppable list with your exact quantities — pick a nearby store (Walmart included in most areas), review the cart, and choose delivery or pickup at checkout.
+            Builds one shoppable list with your exact quantities — pick a nearby store (Kroger, Costco, Aldi, and others, plus Walmart in a handful of pilot cities), review the cart, and choose delivery or pickup at checkout.
           </p>
           {instacartError && <p className="form-error" style={{fontSize:'12px',marginBottom:'10px'}}>{instacartError}</p>}
           <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
@@ -121,6 +139,23 @@ function ShoppingList({ plan }) {
               {copied ? 'Copied!' : 'Copy List'}
             </button>
           </div>
+
+          {krogerStatus?.connected && krogerStatus?.locationId && (
+            <div style={{marginTop:'12px',paddingTop:'12px',borderTop:'1px solid var(--border)'}}>
+              <div style={{fontSize:'13px',fontWeight:'700',marginBottom:'4px'}}>Or add straight to your Kroger cart</div>
+              <p className="muted" style={{fontSize:'12px',marginBottom:'8px'}}>Adds matched items directly to your cart at {krogerStatus.locationName}.</p>
+              {krogerError && <p className="form-error" style={{fontSize:'12px',marginBottom:'8px'}}>{krogerError}</p>}
+              {krogerResult && (
+                <p className="muted" style={{fontSize:'12px',marginBottom:'8px'}}>
+                  Added {krogerResult.added.length} item{krogerResult.added.length===1?'':'s'}
+                  {krogerResult.notFound.length > 0 ? ` — couldn't match: ${krogerResult.notFound.join(', ')}` : ''}
+                </p>
+              )}
+              <button type="button" className="btn-secondary" onClick={addToKroger} disabled={krogerLoading}>
+                {krogerLoading ? 'Adding…' : 'Add to Kroger Cart'}
+              </button>
+            </div>
+          )}
         </div>
       )}
       {sections.map(section => (
