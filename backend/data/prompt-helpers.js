@@ -15,6 +15,16 @@ function formatHeight(profile) {
   return `${ft}'${inch}"`;
 }
 
+// The user's chosen macro ratio, as percentages of daily calories. Only
+// included when they've actually set one — otherwise the model picks a
+// sensible split itself.
+function macroSplit(profile) {
+  const p = Number(profile.proteinPct), c = Number(profile.carbsPct), f = Number(profile.fatPct);
+  if (![p, c, f].every(Number.isFinite)) return null;
+  if (p + c + f === 0) return null;
+  return `${p}% protein / ${c}% carbs / ${f}% fat`;
+}
+
 // Returns a compact "- Key: value" block, omitting anything the user hasn't
 // filled in — an absent line reads the same as "not provided" to the model
 // but costs nothing.
@@ -28,6 +38,7 @@ function buildStatsBlock(profile = {}, extras = {}) {
     profile.timeline     && `Timeline: ${profile.timeline}wk`,
     profile.activityLevel && `Activity: ${profile.activityLevel}`,
     profile.calorieGoal  && `Target calories/day: ${profile.calorieGoal} (hit this closely)`,
+    macroSplit(profile)  && `Macro split: ${macroSplit(profile)} (hit these ratios)`,
     extras.prs           && `PRs: ${extras.prs}`,
     profile.restrictions?.length && `Restrictions: ${profile.restrictions.join(', ')}`,
     profile.dislikes     && `Avoid: ${profile.dislikes}`,

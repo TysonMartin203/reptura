@@ -362,12 +362,12 @@ async function useTemplate(req, res) {
 async function createCustom(req, res) {
   try {
     await ensureTable();
-    const { name, plan } = req.body;
+    const { name, plan, category } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Plan name required' });
     if (!plan?.days?.length) return res.status(400).json({ error: 'At least one day with a meal is required' });
     const [result] = await pool.query(
-      'INSERT INTO MealPlans (user_id, name, plan, source) VALUES (?, ?, ?, ?)',
-      [req.userId, name.trim(), JSON.stringify(plan), 'custom']
+      'INSERT INTO MealPlans (user_id, name, plan, source, category) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, name.trim(), JSON.stringify(plan), 'custom', category || null]
     );
     res.status(201).json({ planId: result.insertId });
   } catch (err) {

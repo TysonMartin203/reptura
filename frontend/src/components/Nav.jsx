@@ -17,24 +17,24 @@ export default function Nav() {
 
   return (
     <nav className="bottom-nav">
-      {links.map(({ to, label, Icon }) => (
-        <NavLink key={to} to={to} className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
-          <div className="nav-icon-wrap">
-            <Icon className="nav-icon" />
-          </div>
-          <span className="nav-label">{label}</span>
-        </NavLink>
-      ))}
+      <div className="nav-tabs-row">
+        {links.map(({ to, label, Icon }) => (
+          <NavLink key={to} to={to} className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+            <div className="nav-icon-wrap">
+              <Icon className="nav-icon" />
+            </div>
+            <span className="nav-label">{label}</span>
+          </NavLink>
+        ))}
+      </div>
 
-      <button type="button" className="nav-item" onClick={()=>setShowLogChoice(true)} style={{background:'none',border:'none',cursor:'pointer'}}>
-        <div className="nav-icon-wrap">
-          <IconPlus className="nav-icon" />
-        </div>
-        <span className="nav-label">Log</span>
+      <button type="button" className="nav-log-btn" onClick={()=>setShowLogChoice(true)}>
+        <IconPlus style={{width:'18px',height:'18px'}} />
+        <span>Log</span>
       </button>
 
       {showLogChoice && createPortal(
-        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,.55)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}} onClick={()=>setShowLogChoice(false)}>
+        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,.55)',zIndex:10000,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}} onClick={()=>setShowLogChoice(false)}>
           <div style={{width:'100%',maxWidth:'340px',borderRadius:'16px',background:'var(--surface)',padding:'20px',boxShadow:'var(--shadow-lg)'}} onClick={e=>e.stopPropagation()}>
             <h3 style={{marginBottom:'16px',textAlign:'center'}}>What are you logging?</h3>
             <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>

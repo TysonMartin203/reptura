@@ -94,22 +94,44 @@ export default function ProfileForm({ profile, setProfile }) {
         {!profile.weight && <p className="muted" style={{fontSize:'12px',marginTop:'4px'}}>Fill in your weight above to use the calculator.</p>}
       </div>
       <div className="field">
-        <label className="label">Daily Macro Goals in grams (optional)</label>
+        <label className="label">Daily Macro Split (optional)</label>
         <div className="input-row">
           <div className="input-group">
-            <label className="label" style={{fontSize:'12px'}}>Protein</label>
-            <input className="input" type="number" min="0" placeholder="auto" value={profile.proteinGoal || ''} onChange={e=>setProfile(p=>({...p,proteinGoal:e.target.value}))}/>
+            <label className="label" style={{fontSize:'12px'}}>Protein %</label>
+            <input className="input" type="number" min="0" max="100" placeholder="30" value={profile.proteinPct ?? ''} onChange={e=>setProfile(p=>({...p,proteinPct:e.target.value}))}/>
           </div>
           <div className="input-group">
-            <label className="label" style={{fontSize:'12px'}}>Carbs</label>
-            <input className="input" type="number" min="0" placeholder="auto" value={profile.carbsGoal || ''} onChange={e=>setProfile(p=>({...p,carbsGoal:e.target.value}))}/>
+            <label className="label" style={{fontSize:'12px'}}>Carbs %</label>
+            <input className="input" type="number" min="0" max="100" placeholder="40" value={profile.carbsPct ?? ''} onChange={e=>setProfile(p=>({...p,carbsPct:e.target.value}))}/>
           </div>
           <div className="input-group">
-            <label className="label" style={{fontSize:'12px'}}>Fat</label>
-            <input className="input" type="number" min="0" placeholder="auto" value={profile.fatGoal || ''} onChange={e=>setProfile(p=>({...p,fatGoal:e.target.value}))}/>
+            <label className="label" style={{fontSize:'12px'}}>Fat %</label>
+            <input className="input" type="number" min="0" max="100" placeholder="30" value={profile.fatPct ?? ''} onChange={e=>setProfile(p=>({...p,fatPct:e.target.value}))}/>
           </div>
         </div>
-        <p className="muted" style={{fontSize:'12px',marginTop:'4px'}}>Leave blank to use a standard split (30% protein / 40% carbs / 30% fat) of your calorie goal.</p>
+        {(() => {
+          const p = Number(profile.proteinPct), c = Number(profile.carbsPct), f = Number(profile.fatPct);
+          const anySet = profile.proteinPct !== '' && profile.proteinPct != null
+                      || profile.carbsPct   !== '' && profile.carbsPct   != null
+                      || profile.fatPct     !== '' && profile.fatPct     != null;
+          if (!anySet) {
+            return <p className="muted" style={{fontSize:'12px',marginTop:'4px'}}>Leave blank to use a standard split (30% protein / 40% carbs / 30% fat) of your calorie goal.</p>;
+          }
+          const total = (p||0) + (c||0) + (f||0);
+          const cg = Number(profile.calorieGoal) || 0;
+          // Protein and carbs are 4 cal/g, fat is 9 cal/g — so the same
+          // percentage produces very different gram targets.
+          const grams = cg && total === 100
+            ? ` — about ${Math.round((cg*(p||0)/100)/4)}g protein, ${Math.round((cg*(c||0)/100)/4)}g carbs, ${Math.round((cg*(f||0)/100)/9)}g fat per day`
+            : '';
+          return (
+            <p className={total === 100 ? 'muted' : 'form-error'} style={{fontSize:'12px',marginTop:'4px'}}>
+              {total === 100
+                ? `Adds up to 100%${grams}${cg ? '' : ' — set a calorie goal above to see gram targets'}`
+                : `Currently ${total}% — the three need to add up to 100%.`}
+            </p>
+          );
+        })()}
       </div>
       <div className="field">
         <label className="label">Palm Width (optional)</label>

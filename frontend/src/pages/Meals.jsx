@@ -393,12 +393,24 @@ function PlanDetail({ planId, profile, onBack, onUpdate }) {
             <div style={{fontWeight:'600',fontSize:'14px',marginBottom:'8px'}}>Daily Targets</div>
             {plan.budget_tip && <div style={{fontSize:'12px',color:'var(--teal)',marginBottom:'10px',display:'flex',alignItems:'center',gap:'5px'}}><IconDollar style={{width:'13px',height:'13px'}}/> {plan.budget_tip}</div>}
             <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px',textAlign:'center'}}>
-              {[['Cal',plan.daily_calories],['Protein',`${plan.macros?.protein}g`],['Carbs',`${plan.macros?.carbs}g`],['Fat',`${plan.macros?.fat}g`]].map(([l,v])=>(
+              {(() => {
+                const m = plan.macros || {};
+                // Show each macro's share of the plan's calories alongside the
+                // gram figure — the ratio is what the user actually dialed in.
+                const kcal = (Number(m.protein)||0)*4 + (Number(m.carbs)||0)*4 + (Number(m.fat)||0)*9;
+                const pct = (grams, perGram) => kcal ? `${Math.round((grams*perGram/kcal)*100)}%` : null;
+                return [
+                  ['Cal', plan.daily_calories, null],
+                  ['Protein', `${m.protein}g`, pct(Number(m.protein)||0, 4)],
+                  ['Carbs',   `${m.carbs}g`,   pct(Number(m.carbs)||0, 4)],
+                  ['Fat',     `${m.fat}g`,     pct(Number(m.fat)||0, 9)],
+                ].map(([l,v,p])=>(
                 <div key={l} style={{background:'var(--surface-tint)',borderRadius:'10px',padding:'8px 4px'}}>
                   <div style={{fontWeight:'700',fontSize:'14px',color:'var(--text)'}}>{v}</div>
-                  <div style={{fontSize:'10px',color:'var(--muted)'}}>{l}</div>
+                  <div style={{fontSize:'10px',color:'var(--muted)'}}>{l}{p ? ` · ${p}` : ''}</div>
                 </div>
-              ))}
+              ));
+              })()}
             </div>
           </div>
           {plan.days?.map((day,di) => (
@@ -636,6 +648,10 @@ export default function Meals() {
   const [singleMealType, setSingleMealType] = useState('Lunch');
   const [craving,    setCraving]    = useState('');
   const [singleResult, setSingleResult] = useState(null);
+  const [savingSingle, setSavingSingle] = useState(false);
+  const [savedSingleId, setSavedSingleId] = useState(null);
+  const [singleRecipe, setSingleRecipe] = useState(null);
+  const [singleRecipeLoading, setSingleRecipeLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
   const [planForFamily, setPlanForFamily] = useState(false);
   const [familyMembers, setFamilyMembers] = useState([]);
@@ -712,6 +728,48 @@ export default function Meals() {
     });
   }
 
+  // Saves a one-off AI meal into Meal Plans as its own single-meal entry,
+  // so it can be favorited, re-opened, and cooked again later like any plan.
+  async function saveSingleMeal() {
+    setSavingSingle(true); setError('');
+    try {
+      const data = await api.createCustomMealPlan({
+        name: singleResult.name,
+        category: 'Saved Meals',
+        plan: {
+          daily_calories: singleResult.calories,
+          macros: { protein: singleResult.protein, carbs: singleResult.carbs, fat: singleResult.fat },
+          days: [{
+            day: singleResult.type || 'Meal',
+            meals: [{
+              type: singleResult.type || 'Meal',
+              name: singleResult.name,
+              calories: singleResult.calories,
+              protein: singleResult.protein,
+              carbs: singleResult.carbs,
+              fat: singleResult.fat,
+              ingredients: singleResult.ingredients || [],
+            }],
+          }],
+        },
+      });
+      loadPlans();
+      setSavedSingleId(data.planId);
+    } catch (err) { setError(err.message || 'Could not save that meal.'); }
+    finally { setSavingSingle(false); }
+  }
+
+  async function fetchSingleRecipe() {
+    if (singleRecipe) return;
+    setSingleRecipeLoading(true);
+    try {
+      const data = await api.getMealRecipe({ mealName: singleResult.name, ingredients: singleResult.ingredients || [], useCache: true });
+      setSingleRecipe(data.recipe);
+    } catch {
+      setSingleRecipe({ steps: ['Could not load recipe. Try again.'], prep_time:'', cook_time:'' });
+    } finally { setSingleRecipeLoading(false); }
+  }
+
   async function toggleFav(e, id) {
     e.stopPropagation();
     const data = await api.toggleFavorite(id);
@@ -750,8 +808,9 @@ export default function Meals() {
     if (singleResult) {
       return (
         <div className="page">
-          <button className="btn-ghost" onClick={()=>{setSingleResult(null);}} style={{marginBottom:'16px'}}>← Back</button>
+          <button className="btn-ghost" onClick={()=>{setSingleResult(null);setSingleRecipe(null);setSavedSingleId(null);}} style={{marginBottom:'16px'}}>← Back</button>
           <h2 className="page-title">{singleResult.type}</h2>
+          {error && <p className="form-error" style={{marginBottom:'12px'}}>{error}</p>}
           <div className="card-form" style={{marginBottom:'16px'}}>
             <div style={{fontWeight:'700',fontSize:'17px',marginBottom:'8px'}}>{singleResult.name}</div>
             <div style={{fontSize:'13px',color:'var(--muted)',marginBottom:'12px'}}>
@@ -762,11 +821,45 @@ export default function Meals() {
                 {singleResult.ingredients.map((ing,i) => <li key={i}>{ing}</li>)}
               </ul>
             )}
+
+            {/* Cooking directions — same recipe lookup the plan meals use */}
+            <div style={{marginTop:'14px',paddingTop:'14px',borderTop:'1px solid var(--border)'}}>
+              {!singleRecipe && !singleRecipeLoading && (
+                <button className="btn-ghost-sm" style={{fontSize:'12px',display:'flex',alignItems:'center',gap:'5px'}} onClick={fetchSingleRecipe}>
+                  <IconChefHat style={{width:'14px',height:'14px'}}/> How to Cook
+                </button>
+              )}
+              {singleRecipeLoading && <p style={{fontSize:'12px',color:'var(--muted)'}}>Loading recipe…</p>}
+              {singleRecipe && (
+                <div>
+                  {(singleRecipe.prep_time || singleRecipe.cook_time) && (
+                    <div style={{fontSize:'12px',color:'var(--muted)',marginBottom:'8px'}}>
+                      {singleRecipe.prep_time && `Prep: ${singleRecipe.prep_time}`}
+                      {singleRecipe.prep_time && singleRecipe.cook_time && ' · '}
+                      {singleRecipe.cook_time && `Cook: ${singleRecipe.cook_time}`}
+                    </div>
+                  )}
+                  <ol style={{fontSize:'13px',paddingLeft:'18px',margin:0,lineHeight:'1.6'}}>
+                    {(singleRecipe.steps || []).map((s,i) => <li key={i} style={{marginBottom:'4px'}}>{s}</li>)}
+                  </ol>
+                </div>
+              )}
+            </div>
           </div>
-          <div style={{display:'flex',gap:'10px'}}>
+
+          <div style={{display:'flex',gap:'10px',marginBottom:'10px'}}>
             <button className="btn-primary" style={{flex:1}} onClick={logSingleMeal}>Log This Meal</button>
             <button className="btn-secondary" style={{flex:1}} disabled={generating} onClick={generate}>{generating?'…':'Try Another'}</button>
           </div>
+          {savedSingleId ? (
+            <button className="btn-ghost" style={{width:'100%'}} onClick={()=>{setActivePlan(savedSingleId);setView('detail');}}>
+              Saved to Meal Plans — View It
+            </button>
+          ) : (
+            <button className="btn-ghost" style={{width:'100%'}} disabled={savingSingle} onClick={saveSingleMeal}>
+              {savingSingle ? 'Saving…' : 'Save to Meal Plans'}
+            </button>
+          )}
         </div>
       );
     }
@@ -922,9 +1015,16 @@ export default function Meals() {
 
   const favoritePlans = plans.filter(p => p.is_favorite);
   const familyPlans = plans.filter(p => p.category === 'Family Plan');
+  const savedMealPlans = plans.filter(p => p.category === 'Saved Meals');
   const templateCategories = [...new Set(templates.map(t => t.category))];
-  const categoryTabs = ['My Favorites', ...(familyPlans.length > 0 ? ['Family Plan'] : []), 'All', ...templateCategories];
-  const visibleTemplates = activeCategory === 'All' || activeCategory === 'My Favorites' || activeCategory === 'Family Plan'
+  const categoryTabs = [
+    'My Favorites',
+    ...(savedMealPlans.length > 0 ? ['Saved Meals'] : []),
+    ...(familyPlans.length > 0 ? ['Family Plan'] : []),
+    'All',
+    ...templateCategories,
+  ];
+  const visibleTemplates = ['All','My Favorites','Family Plan','Saved Meals'].includes(activeCategory)
     ? templates
     : templates.filter(t => t.category === activeCategory);
 
@@ -1009,16 +1109,16 @@ export default function Meals() {
                 ))}
               </div>
             )
-          ) : activeCategory === 'Family Plan' ? (
+          ) : activeCategory === 'Family Plan' || activeCategory === 'Saved Meals' ? (
             <div className="form-stack">
-              {familyPlans.map(plan => (
+              {(activeCategory === 'Family Plan' ? familyPlans : savedMealPlans).map(plan => (
                 <div key={plan.id} className="glass-card" style={{cursor:'pointer'}}
                   onClick={()=>{setActivePlan(plan.id);setView('detail');}}>
                   <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
                     <div style={{flex:1}}>
                       <div style={{fontWeight:'700',fontSize:'15px',marginBottom:'3px'}}>{plan.name}</div>
                       <div style={{fontSize:'12px',color:'var(--muted)'}}>
-                        {plan.daily_calories ? `${plan.daily_calories} cal/day` : ''}
+                        {plan.daily_calories ? `${plan.daily_calories} cal` : ''}
                       </div>
                     </div>
                   </div>
