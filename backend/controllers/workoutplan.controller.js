@@ -7,7 +7,11 @@ const { findById } = require('../models/user.model');
 const { buildStatsBlock } = require('../data/prompt-helpers');
 const { areFriends } = require('../models/friend.model');
 const { EXERCISE_DESCRIPTIONS } = require('../data/exercise-descriptions');
-const { reorderExercisesByMuscleGroup } = require('../data/muscleGroups');
+const { reorderExercisesByMuscleGroup, fixPlanOrder } = require('../data/muscleGroups');
+
+// Built-in templates get the same exercise spacing as AI plans. Done once when
+// the server starts, so every copy handed out is already well ordered.
+TEMPLATES.forEach(t => fixPlanOrder(t.plan));
 
 function getClient() {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not set');
@@ -61,7 +65,15 @@ async function getPlan(req, res) {
   try {
     const [[row]] = await pool.query('SELECT * FROM WorkoutPlans WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
     if (!row) return res.status(404).json({ error: 'Not found' });
-    res.json({ plan: row.plan, name: row.name, is_favorite: row.is_favorite, shared_from_username: row.shared_from_username });
+    const plan = typeof row.plan === 'string' ? JSON.parse(row.plan) : row.plan;
+    // Plans saved before exercise spacing existed get fixed the first time
+    // they're opened, then saved so the displayed order and the stored order
+    // match (swap/edit find exercises by position). Plans someone built by
+    // hand keep the order they chose.
+    if (!plan.custom && fixPlanOrder(plan)) {
+      await pool.query('UPDATE WorkoutPlans SET plan = ? WHERE id = ?', [JSON.stringify(plan), row.id]);
+    }
+    res.json({ plan, name: row.name, is_favorite: row.is_favorite, shared_from_username: row.shared_from_username });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -406,7 +418,7 @@ async function createCustom(req, res) {
     }
     const [result] = await pool.query(
       'INSERT INTO WorkoutPlans (user_id, name, plan) VALUES (?, ?, ?)',
-      [req.userId, name.trim(), JSON.stringify(plan)]
+      [req.userId, name.trim(), JSON.stringify({ ...plan, custom: true })]
     );
     res.status(201).json({ planId: result.insertId });
   } catch (err) {
