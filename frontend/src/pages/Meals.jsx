@@ -81,6 +81,7 @@ function ShoppingList({ plan }) {
   const [krogerLoading, setKrogerLoading] = useState(false);
   const [krogerError, setKrogerError] = useState('');
   const [krogerResult, setKrogerResult] = useState(null);
+  const navigate = useNavigate();
   useEffect(() => { setList(buildShoppingList(plan)); }, [plan]);
   useEffect(() => { api.getKrogerStatus().then(setKrogerStatus).catch(()=>{}); }, []);
   function toggle(section, idx) { setList(l => ({...l,[section]:l[section].map((item,i)=>i!==idx?item:{...item,checked:!item.checked})})); }
@@ -108,6 +109,16 @@ function ShoppingList({ plan }) {
     }
   }
 
+  // Sends them through Kroger's login. Kroger returns them to Settings,
+  // which is also where they choose their store.
+  async function connectKroger() {
+    setKrogerError('');
+    try {
+      const { url } = await api.getKrogerConnectUrl();
+      window.location.href = url;
+    } catch (err) { setKrogerError(err.message); }
+  }
+
   async function addToKroger() {
     setKrogerLoading(true); setKrogerError(''); setKrogerResult(null);
     try {
@@ -126,23 +137,28 @@ function ShoppingList({ plan }) {
     <div>
       {unchecked.length > 0 && (
         <div className="glass-card" style={{marginBottom:'20px'}}>
-          <div style={{fontSize:'13px',fontWeight:'700',marginBottom:'4px'}}>Send to Instacart</div>
-          <p className="muted" style={{fontSize:'12px',marginBottom:'10px'}}>
-            Builds one shoppable list with your exact quantities — pick a nearby store (Kroger, Costco, Aldi, and others, plus Walmart in a handful of pilot cities), review the cart, and choose delivery or pickup at checkout.
-          </p>
-          {instacartError && <p className="form-error" style={{fontSize:'12px',marginBottom:'10px'}}>{instacartError}</p>}
-          <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-            <button type="button" className="btn-primary" onClick={openInstacart} disabled={instacartLoading} style={{flex:'1 1 auto'}}>
-              {instacartLoading ? 'Building list…' : `Open in Instacart (${unchecked.length} item${unchecked.length===1?'':'s'})`}
-            </button>
-            <button type="button" className="btn-ghost-sm" onClick={copyList}>
-              {copied ? 'Copied!' : 'Copy List'}
-            </button>
-          </div>
-
-          {krogerStatus?.connected && krogerStatus?.locationId && (
-            <div style={{marginTop:'12px',paddingTop:'12px',borderTop:'1px solid var(--border)'}}>
-              <div style={{fontSize:'13px',fontWeight:'700',marginBottom:'4px'}}>Or add straight to your Kroger cart</div>
+          {/* Kroger — adds items straight into the user's own Kroger cart */}
+          <div style={{fontSize:'13px',fontWeight:'700',marginBottom:'4px'}}>Add to your Kroger cart</div>
+          {!krogerStatus ? (
+            <p className="muted" style={{fontSize:'12px'}}>Checking your Kroger connection…</p>
+          ) : !krogerStatus.configured ? (
+            <>
+              <p className="muted" style={{fontSize:'12px',marginBottom:'8px'}}>Kroger ordering isn't available yet — check back soon.</p>
+              <button type="button" className="btn-secondary" disabled>Add to Kroger Cart</button>
+            </>
+          ) : !krogerStatus.connected ? (
+            <>
+              <p className="muted" style={{fontSize:'12px',marginBottom:'8px'}}>Connect your Kroger account (also Ralphs, Fred Meyer, King Soopers, Smith's, Fry's, and other Kroger stores), then pick your store — after that, this list goes straight into your cart.</p>
+              {krogerError && <p className="form-error" style={{fontSize:'12px',marginBottom:'8px'}}>{krogerError}</p>}
+              <button type="button" className="btn-secondary" onClick={connectKroger}>Connect Kroger</button>
+            </>
+          ) : !krogerStatus.locationId ? (
+            <>
+              <p className="muted" style={{fontSize:'12px',marginBottom:'8px'}}>Kroger is connected — pick your store so items can be matched to what it carries.</p>
+              <button type="button" className="btn-secondary" onClick={()=>navigate('/account')}>Choose Your Kroger Store</button>
+            </>
+          ) : (
+            <>
               <p className="muted" style={{fontSize:'12px',marginBottom:'8px'}}>Adds matched items directly to your cart at {krogerStatus.locationName}.</p>
               {krogerError && <p className="form-error" style={{fontSize:'12px',marginBottom:'8px'}}>{krogerError}</p>}
               {krogerResult && (
@@ -152,10 +168,27 @@ function ShoppingList({ plan }) {
                 </p>
               )}
               <button type="button" className="btn-secondary" onClick={addToKroger} disabled={krogerLoading}>
-                {krogerLoading ? 'Adding…' : 'Add to Kroger Cart'}
+                {krogerLoading ? 'Adding…' : `Add to Kroger Cart (${unchecked.length} item${unchecked.length===1?'':'s'})`}
+              </button>
+            </>
+          )}
+
+          {/* Instacart — one shoppable list, user picks any nearby store */}
+          <div style={{marginTop:'14px',paddingTop:'14px',borderTop:'1px solid var(--border)'}}>
+            <div style={{fontSize:'13px',fontWeight:'700',marginBottom:'4px'}}>Or send to Instacart</div>
+            <p className="muted" style={{fontSize:'12px',marginBottom:'10px'}}>
+              Builds one shoppable list with your exact quantities — pick a nearby store (Kroger, Costco, Aldi, and others, plus Walmart in a handful of pilot cities), review the cart, and choose delivery or pickup at checkout.
+            </p>
+            {instacartError && <p className="form-error" style={{fontSize:'12px',marginBottom:'10px'}}>{instacartError}</p>}
+            <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+              <button type="button" className="btn-primary" onClick={openInstacart} disabled={instacartLoading} style={{flex:'1 1 auto'}}>
+                {instacartLoading ? 'Building list…' : `Open in Instacart (${unchecked.length} item${unchecked.length===1?'':'s'})`}
+              </button>
+              <button type="button" className="btn-ghost-sm" onClick={copyList}>
+                {copied ? 'Copied!' : 'Copy List'}
               </button>
             </div>
-          )}
+          </div>
         </div>
       )}
       {sections.map(section => (

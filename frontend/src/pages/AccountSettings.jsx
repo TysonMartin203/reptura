@@ -433,7 +433,9 @@ export default function AccountSettings() {
         {krogerMsg && <p className={krogerStatus.connected ? 'form-success' : 'muted'} style={{fontSize:'12px',marginBottom:'10px'}}>{krogerMsg}</p>}
         {error && <p className="form-error" style={{fontSize:'12px',marginBottom:'10px'}}>{error}</p>}
 
-        {krogerLoading ? <div className="spinner" style={{margin:'10px auto'}}/> : !krogerStatus.connected ? (
+        {krogerLoading ? <div className="spinner" style={{margin:'10px auto'}}/> : !krogerStatus.configured ? (
+          <p className="muted" style={{fontSize:'12px'}}>Kroger ordering isn't available yet — check back soon.</p>
+        ) : !krogerStatus.connected ? (
           <button className="btn-secondary" onClick={connectKroger}>Connect Kroger Account</button>
         ) : (
           <>

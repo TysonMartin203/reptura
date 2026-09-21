@@ -108,7 +108,12 @@ async function callback(req, res) {
 async function status(req, res) {
   try {
     const row = await getTokens(req.userId);
-    res.json({ connected: !!row, locationId: row?.location_id || null, locationName: row?.location_name || null });
+    res.json({
+      // Whether the Kroger app keys are set on the server at all — lets the
+      // app show "not available yet" instead of a developer-facing error.
+      configured: !!(process.env.KROGER_CLIENT_ID && process.env.KROGER_CLIENT_SECRET),
+      connected: !!row, locationId: row?.location_id || null, locationName: row?.location_name || null,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
