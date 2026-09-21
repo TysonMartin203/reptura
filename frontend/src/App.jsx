@@ -1,5 +1,5 @@
 import { useEffect, Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Header     from './components/Header';
 import Nav        from './components/Nav';
@@ -10,6 +10,7 @@ import Tutorial   from './pages/Tutorial';
 import Admin       from './pages/Admin';
 import Dashboard  from './pages/Dashboard';
 import LogWorkout from './pages/LogWorkout';
+import RaceTraining from './pages/RaceTraining';
 import WorkoutsHub from './pages/WorkoutsHub';
 import PastWorkouts from './pages/PastWorkouts';
 const RunTracker = lazy(() => import('./pages/RunTracker'));
@@ -48,6 +49,7 @@ function AppRoutes() {
       <Route path="/log/history" element={<Private><PastWorkouts /></Private>} />
       <Route path="/log/track" element={<Private><Suspense fallback={<div className="page"><div className="spinner"/></div>}><RunTracker /></Suspense></Private>} />
       <Route path="/workout-plans" element={<Private><WorkoutPlans /></Private>} />
+      <Route path="/race-training" element={<Private><RaceTraining /></Private>} />
       <Route path="/workouts/:id" element={<Private><EditWorkout /></Private>} />
       <Route path="/workouts/:id/view" element={<Private><ViewWorkout /></Private>} />
       <Route path="/photos"    element={<Private><Photos /></Private>} />
@@ -88,7 +90,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Nav />
+      <LoggingAwareNav />
       <div className="desktop-main">
         <Header />
         <div className="app-content">
@@ -97,4 +99,28 @@ export default function App() {
       </div>
     </div>
   );
+}
+
+// Pages where the user is actively filling out a log. The tab bar and big Log
+// button are hidden there — they don't apply to the entry in progress, and a
+// prominent "Log" button sitting under a half-finished log was confusing.
+// /workouts/:id is the edit form; /workouts/:id/view is read-only and keeps the nav.
+function isLoggingRoute(pathname) {
+  if (pathname === '/log/new' || pathname === '/meals/log') return true;
+  return /^\/workouts\/[^/]+$/.test(pathname);
+}
+
+function LoggingAwareNav() {
+  const { pathname } = useLocation();
+  const logging = isLoggingRoute(pathname);
+
+  // The body carries the padding that reserves room for the nav (bottom on
+  // mobile, left sidebar on desktop), so it has to be released here too or a
+  // blank gap is left where the nav used to be.
+  useEffect(() => {
+    document.body.classList.toggle('no-nav', logging);
+    return () => document.body.classList.remove('no-nav');
+  }, [logging]);
+
+  return logging ? null : <Nav />;
 }

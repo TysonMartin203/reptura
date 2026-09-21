@@ -15,7 +15,7 @@ function getClient() {
     // long a single call can hang, so bursts of concurrent users don't
     // fail fast under load.
     maxRetries: 4,
-    timeout: 30_000,
+    timeout: 180_000, // full 7-day plans (up to 8000 output tokens) routinely take 1-2+ minutes
   });
 }
 

@@ -12,7 +12,7 @@ function getClient() {
     // fighting harder for rather than failing fast, and cap how long a
     // single request can hang so a stuck call doesn't tie up the server.
     maxRetries: 4,
-    timeout: 30_000,
+    timeout: 60_000, // photo/label/voice parsing is short output, but vision adds latency
   });
 }
 

@@ -38,7 +38,7 @@ export default function Nav() {
           <div style={{width:'100%',maxWidth:'340px',borderRadius:'16px',background:'var(--surface)',padding:'20px',boxShadow:'var(--shadow-lg)'}} onClick={e=>e.stopPropagation()}>
             <h3 style={{marginBottom:'16px',textAlign:'center'}}>What are you logging?</h3>
             <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
-              <button className="btn-primary" onClick={()=>{setShowLogChoice(false); navigate('/log');}}>
+              <button className="btn-primary" onClick={()=>{setShowLogChoice(false); navigate('/log/new');}}>
                 Workout
               </button>
               <button className="btn-primary" onClick={()=>{setShowLogChoice(false); navigate('/meals/log');}}>

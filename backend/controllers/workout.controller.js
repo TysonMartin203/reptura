@@ -17,7 +17,7 @@ function getClient() {
     // long a single call can hang, so bursts of concurrent users don't
     // fail fast under load.
     maxRetries: 4,
-    timeout: 30_000,
+    timeout: 60_000, // voice-log parsing is short output
   });
 }
 

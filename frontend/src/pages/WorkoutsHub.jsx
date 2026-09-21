@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { IconBarbell, IconClipboard, IconClock, IconMapPin } from '../components/Icons';
+import { IconBarbell, IconClipboard, IconClock, IconMapPin, IconTrophy } from '../components/Icons';
 
 const CARD_STYLE = {
   textDecoration:'none', color:'inherit', padding:'28px 16px', textAlign:'center',
@@ -30,6 +30,11 @@ export default function WorkoutsHub() {
           <IconClock style={{width:'34px',height:'34px',color:'var(--accent)'}}/>
           <span style={{fontWeight:'700',fontSize:'16px'}}>Past Workouts</span>
           <span className="muted" style={{fontSize:'13px'}}>See everything you've logged</span>
+        </Link>
+        <Link to="/race-training" className="glass-card" style={{...CARD_STYLE, gridColumn:'1 / -1'}}>
+          <IconTrophy style={{width:'34px',height:'34px',color:'var(--accent)'}}/>
+          <span style={{fontWeight:'700',fontSize:'16px'}}>Race Training</span>
+          <span className="muted" style={{fontSize:'13px'}}>5K to Ironman — a week-by-week plan to race day</span>
         </Link>
       </div>
     </div>

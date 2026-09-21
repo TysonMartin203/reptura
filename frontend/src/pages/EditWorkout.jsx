@@ -71,7 +71,10 @@ export default function EditWorkout() {
 
   return (
     <div className="page">
-      <h2 className="page-title">Edit Workout</h2>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'20px'}}>
+        <h2 className="page-title" style={{marginBottom:0}}>Edit Workout</h2>
+        <button type="button" className="link-small" style={{background:'none',border:'none',cursor:'pointer'}} onClick={()=>navigate(-1)}>← Back</button>
+      </div>
       {/* The multi-photo uploader lives here, before the Save Changes / Delete
           Workout buttons inside the form below — it's the one and only place
           to add photos to this workout now. */}
