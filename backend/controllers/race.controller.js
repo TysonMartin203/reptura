@@ -94,6 +94,19 @@ async function generate(req, res) {
     const isTri = race.disciplines.length > 1;
     const unit = distanceUnit === 'km' ? 'km' : 'mi';
     const f = fitness;
+
+    // Days/week accepts 0–7, where 0 (or anything out of range) means the athlete
+    // hasn't picked a number and the coach sets the frequency. Training 1–2 days
+    // for a long race is legitimate but tight, so the plan is told to protect the
+    // sessions that matter instead of thinning everything out evenly.
+    const days = Number(f.daysPerWeek);
+    const setDays = Number.isInteger(days) && days >= 1 && days <= 7;
+    const frequencyRule = setDays
+      ? `Train exactly ${days} day${days === 1 ? '' : 's'}/week`
+      : 'Choose the weekly training frequency yourself — start from their current fitness and build gradually';
+    const lowVolumeNote = setDays && days <= 2
+      ? `\n- Only ${days} session${days === 1 ? '' : 's'} a week is a low volume for a ${raceType}: make every session count (keep the long session and one quality session), and be honest in the summary about what this frequency can realistically deliver.`
+      : '';
     const fitnessLines = [
       f.experience && `Experience: ${f.experience}`,
       f.goalType === 'Time goal' && f.goalTime ? `Goal: finish in ${f.goalTime}` : 'Goal: finish strong and healthy',
@@ -117,7 +130,7 @@ ${buildStatsBlock(profile)}
 ${fitnessLines}
 
 Rules:
-- Train ${f.daysPerWeek || 4} days/week; long session on ${f.longDay || 'Sat'}. Omit rest days.
+- ${frequencyRule}; long session on ${f.longDay || 'Sat'}. Omit rest days.${lowVolumeNote}
 - Build volume gradually (max ~10%/wk) with a lighter recovery week every 3-4 weeks, then a ${race.taperWeeks}-week taper.
 - Phases: Base, Build, Peak, Taper (fewer if the plan is short).
 - Run/bike distances in ${unit}; swims in ${unit === 'km' ? 'meters' : 'yards'}.${isTri ? '\n- Include brick sessions (bike straight into a short run) in Build and Peak.' : ''}

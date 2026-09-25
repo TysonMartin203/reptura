@@ -148,7 +148,10 @@ function NewRacePlan({ onCancel, onCreated }) {
               </select></div>
             <div className="input-group"><label className="label">Days/week</label>
               <select className="input" value={fit.daysPerWeek} onChange={e => setF('daysPerWeek', Number(e.target.value))}>
-                {[3, 4, 5, 6, 7].map(n => <option key={n} value={n}>{n}</option>)}
+                {/* 0 means "no set number" — the coach picks the frequency rather
+                    than the plan coming back empty. */}
+                <option value={0}>Let coach decide</option>
+                {[1, 2, 3, 4, 5, 6, 7].map(n => <option key={n} value={n}>{n}</option>)}
               </select></div>
             <div className="input-group"><label className="label">Long day</label>
               <select className="input" value={fit.longDay} onChange={e => setF('longDay', e.target.value)}>

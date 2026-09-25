@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const pool   = require('../config/db');
 const { OAuth2Client } = require('google-auth-library');
 const { sendPasswordResetEmail } = require('../config/email');
+const { frontendUrl } = require('../config/urls');
 const {
   createUser, findByEmail, findByUsername, findByGoogleId, linkGoogleId, createGoogleUser,
 } = require('../models/user.model');
@@ -101,7 +102,7 @@ async function login(req, res) {
         const token = crypto.randomBytes(32).toString('hex');
         const expires = new Date(Date.now() + 60 * 60 * 1000);
         await pool.query('UPDATE Users SET reset_token = ?, reset_token_expires = ? WHERE id = ?', [token, expires, user.id]);
-        const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const base = frontendUrl();
         await sendPasswordResetEmail(user.email, `${base}/reset-password?token=${token}`);
         return res.status(401).json({ error: 'Your password needs to be reset — check your email for a link to set a new one.' });
       } catch (emailErr) {
@@ -175,7 +176,7 @@ async function forgotPassword(req, res) {
       const token = crypto.randomBytes(32).toString('hex');
       const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
       await pool.query('UPDATE Users SET reset_token = ?, reset_token_expires = ? WHERE id = ?', [token, expires, user.id]);
-      const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const base = frontendUrl();
       const resetUrl = `${base}/reset-password?token=${token}`;
       try {
         await sendPasswordResetEmail(user.email, resetUrl);

@@ -14,10 +14,19 @@ const app = express();
 // and the original netlify.app URL (handy as a fallback if DNS ever breaks).
 // A browser treats each of those as a distinct origin, so every one the app
 // is actually served from has to be listed or its API calls get blocked.
-const allowedOrigins = [
-  'http://localhost:5173',
-  ...(process.env.CLIENT_URL || '').split(',').map(s => s.trim()).filter(Boolean),
-];
+const { clientOrigins, frontendUrl, malformedOrigins } = require('./config/urls');
+
+const allowedOrigins = clientOrigins();
+
+// A mistyped entry (a missing colon, say) would otherwise just never match,
+// and the only symptom would be one domain failing every API call. Say so out
+// loud at boot instead.
+const badOrigins = malformedOrigins();
+if (badOrigins.length) {
+  console.warn('Ignoring malformed URL(s) in CLIENT_URL/FRONTEND_URL:', badOrigins.join(', '));
+}
+console.log('Allowed origins:', allowedOrigins.join(', '));
+console.log('Redirects and email links point to:', frontendUrl());
 
 app.use(cors({
   origin: (origin, cb) => {

@@ -6,6 +6,7 @@
 // Docs: https://developer.kroger.com
 const jwt = require('jsonwebtoken');
 const { saveTokens, getTokens, saveLocation, clearTokens } = require('../models/kroger.model');
+const { frontendUrl } = require('../config/urls');
 
 function getBaseUrl() {
   const env = (process.env.KROGER_ENV || 'certification').toLowerCase();
@@ -75,15 +76,17 @@ function connect(req, res) {
 // hit directly by the browser (no Authorization header), so the signed
 // state param is what tells us which Reptura user this is.
 async function callback(req, res) {
-  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  // NOT process.env.CLIENT_URL — that's the full comma-separated CORS
+  // allowlist, and pasting it into a redirect produces one unreachable URL.
+  const clientUrl = frontendUrl();
   try {
     const { code, state, error: krogerError } = req.query;
-    if (krogerError) return res.redirect(`${clientUrl}/account?kroger=denied`);
+    if (krogerError) return res.redirect(`${clientUrl}/settings?kroger=denied`);
     let userId;
     try {
       ({ userId } = jwt.verify(state, process.env.JWT_SECRET));
     } catch {
-      return res.redirect(`${clientUrl}/account?kroger=error`);
+      return res.redirect(`${clientUrl}/settings?kroger=error`);
     }
 
     const resp = await fetch(`${getBaseUrl()}/v1/connect/oauth2/token`, {
@@ -94,14 +97,14 @@ async function callback(req, res) {
     const data = await resp.json();
     if (!resp.ok) {
       console.error('Kroger token exchange failed:', data);
-      return res.redirect(`${clientUrl}/account?kroger=error`);
+      return res.redirect(`${clientUrl}/settings?kroger=error`);
     }
 
     await saveTokens(userId, { accessToken: data.access_token, refreshToken: data.refresh_token, expiresIn: data.expires_in });
-    res.redirect(`${clientUrl}/account?kroger=connected`);
+    res.redirect(`${clientUrl}/settings?kroger=connected`);
   } catch (err) {
     console.error(err);
-    res.redirect(`${clientUrl}/account?kroger=error`);
+    res.redirect(`${clientUrl}/settings?kroger=error`);
   }
 }
 

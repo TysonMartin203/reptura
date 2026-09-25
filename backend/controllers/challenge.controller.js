@@ -1,4 +1,4 @@
-const { createChallenge, listChallenges, joinChallenge, getChallengeProgress } = require('../models/challenge.model');
+const { createChallenge, listChallenges, joinChallenge, deleteChallenge, getChallengeProgress } = require('../models/challenge.model');
 
 const NEEDS_EXERCISE = ['pr_gain', 'most_distance', 'bodyweight_reps', 'reach_weight', 'reach_reps', 'reach_pace', 'reach_distance'];
 
@@ -35,6 +35,16 @@ async function join(req, res) {
   }
 }
 
+async function remove(req, res) {
+  try {
+    await deleteChallenge(req.params.id, req.userId);
+    res.json({ success: true });
+  } catch (err) {
+    if (!err.status) console.error(err);
+    res.status(err.status || 500).json({ error: err.status ? err.message : 'Server error' });
+  }
+}
+
 async function progress(req, res) {
   try {
     const result = await getChallengeProgress(req.params.id, req.userId);
@@ -47,4 +57,4 @@ async function progress(req, res) {
   }
 }
 
-module.exports = { create, list, join, progress };
+module.exports = { create, list, join, remove, progress };

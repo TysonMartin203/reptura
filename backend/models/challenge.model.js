@@ -78,6 +78,20 @@ async function joinChallenge(challengeId, userId) {
   }
 }
 
+// Only the creator can delete a challenge. ChallengeParticipants cascades off
+// the foreign key, but feed posts point at the challenge by ref_id with no FK,
+// so they'd be left behind pointing at nothing — clear them explicitly (their
+// reactions cascade from FeedEvents).
+async function deleteChallenge(challengeId, userId) {
+  const [[challenge]] = await pool.query('SELECT creator_id FROM Challenges WHERE id = ?', [challengeId]);
+  if (!challenge) throw Object.assign(new Error('Not found'), { status: 404 });
+  if (challenge.creator_id !== userId)
+    throw Object.assign(new Error('Only the person who created this challenge can delete it'), { status: 403 });
+
+  await pool.query("DELETE FROM FeedEvents WHERE type = 'challenge' AND ref_id = ?", [challengeId]);
+  await pool.query('DELETE FROM Challenges WHERE id = ?', [challengeId]);
+}
+
 // Per-participant progress for a single challenge, scoped to its date window.
 async function getChallengeProgress(challengeId, userId) {
   const [[challenge]] = await pool.query('SELECT * FROM Challenges WHERE id = ?', [challengeId]);
@@ -222,4 +236,4 @@ async function getChallengeProgress(challengeId, userId) {
   return { ...challenge, unit, leaderboard };
 }
 
-module.exports = { createChallenge, listChallenges, joinChallenge, getChallengeProgress };
+module.exports = { createChallenge, listChallenges, joinChallenge, deleteChallenge, getChallengeProgress };

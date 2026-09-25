@@ -155,7 +155,7 @@ function ShoppingList({ plan }) {
           ) : !krogerStatus.locationId ? (
             <>
               <p className="muted" style={{fontSize:'12px',marginBottom:'8px'}}>Kroger is connected — pick your store so items can be matched to what it carries.</p>
-              <button type="button" className="btn-secondary" onClick={()=>navigate('/account')}>Choose Your Kroger Store</button>
+              <button type="button" className="btn-secondary" onClick={()=>navigate('/settings')}>Choose Your Kroger Store</button>
             </>
           ) : (
             <>

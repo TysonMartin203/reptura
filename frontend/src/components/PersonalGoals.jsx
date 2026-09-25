@@ -80,6 +80,17 @@ export default function PersonalGoals() {
     } catch (err) { setProgressError(err.message); }
   }
 
+  // Personal goals are always your own, so the delete is always available.
+  async function removeGoal(id) {
+    if (!window.confirm('Delete this goal? This cannot be undone.')) return;
+    setError('');
+    try {
+      await api.deleteChallenge(id);
+      if (viewingGoal === id) setViewingGoal(null);
+      reload();
+    } catch (err) { setError(err.message); }
+  }
+
   return (
     <section className="section">
       <div className="section-header">
@@ -87,9 +98,14 @@ export default function PersonalGoals() {
         <button className="link-small" style={{background:'none',border:'none',cursor:'pointer'}} onClick={()=>setShowNew(s=>!s)}>{showNew ? 'Cancel' : '+ New'}</button>
       </div>
 
+      {error && !showNew && <p className="form-error" style={{marginBottom:'10px'}}>{error}</p>}
+
       {viewingGoal ? (
         <div className="card-form">
-          <button className="btn-ghost-sm" style={{marginBottom:'12px'}} onClick={()=>setViewingGoal(null)}>← Back to goals</button>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'12px'}}>
+            <button className="btn-ghost-sm" onClick={()=>setViewingGoal(null)}>← Back to goals</button>
+            <button className="btn-ghost-sm" style={{color:'var(--danger)'}} onClick={()=>removeGoal(viewingGoal)}>Delete</button>
+          </div>
           {progressError ? <p className="form-error">{progressError}</p> : !progressData ? <div className="spinner"/> : (
             <>
               <div style={{fontWeight:'700',fontSize:'16px',marginBottom:'4px'}}>{progressData.title}</div>
@@ -183,8 +199,14 @@ export default function PersonalGoals() {
           {goals.length === 0 && !showNew && <p className="muted" style={{fontSize:'13px'}}>No personal goals yet. Start one above.</p>}
           {goals.map(g => (
             <div key={g.id} className="glass-card clickable" style={{marginBottom:'10px',cursor:'pointer'}} onClick={()=>viewGoal(g.id)}>
-              <div style={{fontWeight:'700',fontSize:'14px'}}>{g.title}</div>
-              <div style={{fontSize:'12px',color:'var(--muted)'}}>Goal by {formatDateStr(g.end_date)}</div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'10px'}}>
+                <div style={{minWidth:0}}>
+                  <div style={{fontWeight:'700',fontSize:'14px'}}>{g.title}</div>
+                  <div style={{fontSize:'12px',color:'var(--muted)'}}>Goal by {formatDateStr(g.end_date)}</div>
+                </div>
+                <button className="btn-ghost-sm" style={{color:'var(--danger)',flexShrink:0}}
+                  onClick={(e)=>{e.stopPropagation();removeGoal(g.id);}}>Delete</button>
+              </div>
             </div>
           ))}
         </>

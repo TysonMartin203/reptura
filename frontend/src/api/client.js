@@ -53,6 +53,7 @@ export const api = {
   getWorkouts:   ()   => request('GET',    '/api/workouts'),
   getWorkout:    (id) => request('GET',    `/api/workouts/${id}`),
   getWorkoutView: (id) => request('GET',   `/api/workouts/${id}/view`),
+  duplicateWorkout: (id, body) => request('POST', `/api/workouts/${id}/duplicate`, body),
   removeWorkoutPhoto: (id, keep) => request('DELETE', `/api/workouts/${id}/photo?keep=${keep}`),
   deleteWorkout: (id) => request('DELETE', `/api/workouts/${id}`),
 
@@ -135,6 +136,7 @@ export const api = {
   getChallenges:   ()    => request('GET',  '/api/challenges'),
   joinChallenge:   (id)  => request('POST', `/api/challenges/${id}/join`, {}),
   getChallengeProgress: (id) => request('GET', `/api/challenges/${id}/progress`),
+  deleteChallenge: (id)  => request('DELETE', `/api/challenges/${id}`),
 
   sendInvite:   (b)   => request('POST', '/api/invites', b),
   getInvites:   ()    => request('GET',  '/api/invites'),

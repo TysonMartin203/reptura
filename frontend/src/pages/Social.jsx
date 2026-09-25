@@ -310,6 +310,19 @@ function CompeteTab() {
     } catch (err) { setProgressError(err.message); }
   }
 
+  // Only the creator sees this — the server enforces that too.
+  async function removeChallenge(id) {
+    if (!window.confirm('Delete this challenge? It disappears for everyone who joined, and this cannot be undone.')) return;
+    setError('');
+    try {
+      await api.deleteChallenge(id);
+      if (viewingChallenge === id) setViewingChallenge(null);
+      reloadChallenges();
+    } catch (err) { setError(err.message); }
+  }
+
+  const viewingMine = challenges.find(c => c.id === viewingChallenge)?.creator_id === user?.id;
+
   const rows = board || [];
   const periodOptions = metric === 'streak' ? [['daily','Daily'],['weekly','Weekly']] : [['week','Week'],['month','Month'],['year','Year'],['lifetime','Lifetime']];
 
@@ -357,9 +370,18 @@ function CompeteTab() {
           <button className="link-small" style={{background:'none',border:'none',cursor:'pointer'}} onClick={()=>setShowNew(s=>!s)}>{showNew ? 'Cancel' : '+ New'}</button>
         </div>
 
+        {/* Shown here too, not just inside the new-challenge form — a failed
+            delete has to be visible with that form closed. */}
+        {error && !showNew && <p className="form-error" style={{marginBottom:'10px'}}>{error}</p>}
+
         {viewingChallenge ? (
           <div className="card-form">
-            <button className="btn-ghost-sm" style={{marginBottom:'12px'}} onClick={()=>setViewingChallenge(null)}>← Back to challenges</button>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'12px'}}>
+              <button className="btn-ghost-sm" onClick={()=>setViewingChallenge(null)}>← Back to challenges</button>
+              {viewingMine && (
+                <button className="btn-ghost-sm" style={{color:'var(--danger)'}} onClick={()=>removeChallenge(viewingChallenge)}>Delete</button>
+              )}
+            </div>
             {progressError ? <p className="form-error">{progressError}</p> : !progressData ? <div className="spinner"/> : (
               <>
                 <div style={{fontWeight:'700',fontSize:'16px',marginBottom:'4px'}}>{progressData.title}</div>
@@ -442,8 +464,14 @@ function CompeteTab() {
                       by {c.creator_username} · {formatDateStr(c.start_date)} – {formatDateStr(c.end_date)}
                     </div>
                   </div>
-                  {!c.joined && <button className="btn-accent-sm" onClick={(e)=>{e.stopPropagation();join(c.id);}}>Join</button>}
-                  {c.joined && <span style={{fontSize:'11px',color:'var(--teal)',fontWeight:'700'}}>Joined</span>}
+                  <div style={{display:'flex',alignItems:'center',gap:'10px',flexShrink:0}}>
+                    {!c.joined && <button className="btn-accent-sm" onClick={(e)=>{e.stopPropagation();join(c.id);}}>Join</button>}
+                    {c.joined && <span style={{fontSize:'11px',color:'var(--teal)',fontWeight:'700'}}>Joined</span>}
+                    {c.creator_id === user?.id && (
+                      <button className="btn-ghost-sm" style={{color:'var(--danger)'}}
+                        onClick={(e)=>{e.stopPropagation();removeChallenge(c.id);}}>Delete</button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
