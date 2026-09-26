@@ -1,6 +1,6 @@
 const {
   createCrew, getMyCrews, getCrew, inviteMember, getCrewInvites, respondCrewInvite,
-  getMessages, sendMessage,
+  getMessages, sendMessage, deleteCrew,
 } = require('../models/crew.model');
 
 async function create(req, res) {
@@ -90,4 +90,14 @@ async function send(req, res) {
   }
 }
 
-module.exports = { create, list, getOne, invite, listInvites, acceptInvite, declineInvite, messages, send };
+async function remove(req, res) {
+  try {
+    await deleteCrew(req.params.id, req.userId);
+    res.json({ success: true });
+  } catch (err) {
+    if (!err.status) console.error(err);
+    res.status(err.status || 500).json({ error: err.status ? err.message : 'Server error' });
+  }
+}
+
+module.exports = { create, list, getOne, invite, listInvites, acceptInvite, declineInvite, messages, send, remove };

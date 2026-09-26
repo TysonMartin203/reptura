@@ -5,6 +5,7 @@ const pool   = require('../config/db');
 const { OAuth2Client } = require('google-auth-library');
 const { sendPasswordResetEmail } = require('../config/email');
 const { frontendUrl } = require('../config/urls');
+const { addToAutoJoinCrews } = require('../models/crew.model');
 const {
   createUser, findByEmail, findByUsername, findByGoogleId, linkGoogleId, createGoogleUser,
 } = require('../models/user.model');
@@ -53,6 +54,7 @@ async function googleAuth(req, res) {
         user = existing;
       } else {
         const created = await createGoogleUser({ email, googleId, name });
+        addToAutoJoinCrews(created.id).catch(e => console.error('Auto-join crews failed:', e.message));
         const [[row]] = await pool.query('SELECT * FROM Users WHERE id = ?', [created.id]);
         user = row;
         isNew = true;
@@ -74,6 +76,9 @@ async function register(req, res) {
     if (password.length < 8)
       return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     const id = await createUser({ username, email, password });
+    // Crews flagged auto_join (Alpha Testers) pick up every new account. Never
+    // let this stop someone signing up.
+    addToAutoJoinCrews(id).catch(e => console.error('Auto-join crews failed:', e.message));
     const token = jwt.sign({ userId: id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.status(201).json({ token, userId: id, username, email, theme: 'light', bio: null, notifyBuzz: true, notifyMessages: true, notifyReactions: true, notifyFriendRequests: true, notifyInvites: true, weightUnit: 'lbs', distanceUnit: 'mi', tutorialDone: false, isNewUser: true, isAdmin: false });
   } catch (err) {

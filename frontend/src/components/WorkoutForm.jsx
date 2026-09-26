@@ -8,12 +8,12 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { displayWeight, toStorageWeight, weightUnitLabel } from '../units';
 import TimeInput from './TimeInput';
-import WorkoutPhotos from './WorkoutPhotos';
+import WorkoutPhotos, { splitTags } from './WorkoutPhotos';
 
 function blankLiftingExercise() {
   return {
     category: 'lifting', exerciseName: '', notes: '',
-    sets: '', reps: '', weight: '', perSetWeights: false, setsData: [],
+    sets: '', reps: '', weight: '', perSetWeights: false, bodyweight: false, setsData: [],
   };
 }
 
@@ -74,6 +74,17 @@ function ExerciseCard({ ex, index, onChange, onRemove, canRemove, profileWeight 
     else onChange(index, {
       category: 'cardio', exerciseName: '', customName: '', notes: ex.notes,
       durationMinutes: '', distance: '', distanceUnit: user?.distanceUnit || 'mi', calories: '', avgHeartRate: '', pace: '', intensity: '',
+    });
+  }
+
+  // Turning this on clears any weight already entered, so a bodyweight
+  // exercise never stores a stray weight that would make it a weight PR.
+  function toggleBodyweight() {
+    if (ex.bodyweight) { update({ bodyweight: false }); return; }
+    update({
+      bodyweight: true,
+      weight: '',
+      setsData: (ex.setsData || []).map(s => ({ ...s, weight: '' })),
     });
   }
 
@@ -180,17 +191,28 @@ function ExerciseCard({ ex, index, onChange, onRemove, canRemove, profileWeight 
               <input className="input" type="number" min="1" placeholder="8" value={ex.reps}
                 onChange={e => update({ reps: e.target.value })} disabled={ex.perSetWeights} />
             </div>
-            <div className="input-group">
-              <label className="label">Weight ({wLabel})</label>
-              <input className="input" type="number" min="0" step={weightUnit==='kg'?'1':'2.5'} placeholder={weightUnit==='kg'?'60':'135'} value={displayWeight(ex.weight, weightUnit)}
-                onChange={e => update({ weight: toStorageWeight(e.target.value, weightUnit) })} disabled={ex.perSetWeights} />
-            </div>
+            {!ex.bodyweight && (
+              <div className="input-group">
+                <label className="label">Weight ({wLabel})</label>
+                <input className="input" type="number" min="0" step={weightUnit==='kg'?'1':'2.5'} placeholder={weightUnit==='kg'?'60':'135'} value={displayWeight(ex.weight, weightUnit)}
+                  onChange={e => update({ weight: toStorageWeight(e.target.value, weightUnit) })} disabled={ex.perSetWeights} />
+              </div>
+            )}
           </div>
 
-          <label className="checkbox-row">
-            <input type="checkbox" checked={ex.perSetWeights} onChange={togglePerSet} />
-            <span>Split sets</span>
-          </label>
+          <div style={{display:'flex',gap:'18px',flexWrap:'wrap'}}>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={ex.perSetWeights} onChange={togglePerSet} />
+              <span>Split sets</span>
+            </label>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={!!ex.bodyweight} onChange={toggleBodyweight} />
+              <span>Bodyweight</span>
+            </label>
+          </div>
+          {ex.bodyweight && (
+            <p className="muted" style={{fontSize:'12px'}}>No weight needed — your record for this one is most reps.</p>
+          )}
 
           {ex.perSetWeights && (!ex.sets || parseInt(ex.sets, 10) < 1) && (
             <p className="form-error">Enter a number of sets first.</p>
@@ -203,8 +225,10 @@ function ExerciseCard({ ex, index, onChange, onRemove, canRemove, profileWeight 
                   <span className="set-row-label">Set {i + 1}</span>
                   <input className="input" type="number" min="1" placeholder="Reps" value={s.reps}
                     onChange={e => updateSetRow(i, { reps: e.target.value })} />
-                  <input className="input" type="number" min="0" step={weightUnit==='kg'?'1':'2.5'} placeholder={`Weight (${wLabel})`} value={displayWeight(s.weight, weightUnit)}
-                    onChange={e => updateSetRow(i, { weight: toStorageWeight(e.target.value, weightUnit) })} />
+                  {!ex.bodyweight && (
+                    <input className="input" type="number" min="0" step={weightUnit==='kg'?'1':'2.5'} placeholder={`Weight (${wLabel})`} value={displayWeight(s.weight, weightUnit)}
+                      onChange={e => updateSetRow(i, { weight: toStorageWeight(e.target.value, weightUnit) })} />
+                  )}
                 </div>
               ))}
             </div>
@@ -357,6 +381,9 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
   const [loading,      setLoading]      = useState(false);
   const [profileWeight, setProfileWeight] = useState(null);
   const [createdWorkoutId, setCreatedWorkoutId] = useState(null);
+  const [stagedPhotos, setStagedPhotos] = useState([]);
+  const [photoError,   setPhotoError]   = useState('');
+  const [photoFormKey, setPhotoFormKey] = useState(0);
 
   useEffect(() => {
     api.getProfile().then(d => { if (d.profile?.weight) setProfileWeight(Number(d.profile.weight)); }).catch(()=>{});
@@ -394,6 +421,7 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [voiceError, setVoiceError] = useState('');
   const [saunaMinutes, setSaunaMinutes] = useState('');
+  const [showSauna,    setShowSauna]    = useState(false);
   function addSauna() {
     const minutes = Number(saunaMinutes);
     if (!minutes || minutes <= 0) return;
@@ -403,6 +431,7 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
       calories: '', avgHeartRate: '', pace: '', intensity: 'Moderate',
     }]);
     setSaunaMinutes('');
+    setShowSauna(false);
   }
   // Loose match so "lateral raises" (spoken plural) matches "Lateral Raise" (canonical singular),
   // and similarly for any other minor spoken variation.
@@ -496,7 +525,7 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
 
   async function submit(e) {
     e.preventDefault();
-    setError(''); setResult(null);
+    setError(''); setResult(null); setPhotoError('');
 
     for (const ex of exercises) {
       if (ex.perSetWeights && (!ex.sets || parseInt(ex.sets, 10) < 1)) {
@@ -515,9 +544,10 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
             notes: ex.notes,
             sets: ex.sets || null,
             reps: ex.perSetWeights ? null : (ex.reps || null),
-            weight: ex.perSetWeights ? null : (ex.weight || null),
+            weight: ex.perSetWeights || ex.bodyweight ? null : (ex.weight || null),
             perSetWeights: !!ex.perSetWeights,
-            setsData: ex.perSetWeights ? ex.setsData : [],
+            bodyweight: !!ex.bodyweight,
+            setsData: ex.perSetWeights ? (ex.bodyweight ? ex.setsData.map(s => ({ ...s, weight: null })) : ex.setsData) : [],
           };
         }
         return {
@@ -541,6 +571,22 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
       if (isDraftable) clearDraft();
       if (mode === 'create') {
         setCreatedWorkoutId(data.workoutId || null);
+        // The workout saved; photos are a separate request, so a failure here
+        // must not read as the workout having failed.
+        if (stagedPhotos.length && data.workoutId) {
+          try {
+            const fd = new FormData();
+            stagedPhotos.forEach(p => fd.append('photos', p.file));
+            fd.append('photoDate', date);
+            fd.append('workoutId', data.workoutId);
+            fd.append('tagsPerFile', JSON.stringify(stagedPhotos.map(p => splitTags(p.tags))));
+            await api.uploadPhoto(fd);
+            setStagedPhotos([]);
+            setPhotoFormKey(k => k + 1); // remount the picker so it comes back empty
+          } catch (photoErr) {
+            setPhotoError(`Workout saved, but the photos didn't upload: ${photoErr.message}`);
+          }
+        }
         setName('');
         setExercises([blankLiftingExercise()]);
         setNotesBefore(''); setNotesAfter('');
@@ -599,11 +645,19 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
 
       <button type="button" className="btn-secondary" onClick={addExercise}>+ Add Exercise</button>
 
-      <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
-        <input className="input" type="number" min="1" placeholder="Minutes" value={saunaMinutes}
-          onChange={e=>setSaunaMinutes(e.target.value)} style={{maxWidth:'110px'}} />
-        <button type="button" className="btn-ghost-sm" onClick={addSauna}>+ Add Sauna Session</button>
-      </div>
+      {/* The minutes box only appears once they've said they want a sauna session,
+          so it isn't sitting there asking to be filled in on every workout. */}
+      {!showSauna ? (
+        <button type="button" className="btn-ghost-sm" style={{alignSelf:'flex-start'}}
+          onClick={()=>setShowSauna(true)}>+ Add Sauna Session</button>
+      ) : (
+        <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+          <input className="input" type="number" min="1" placeholder="Minutes" value={saunaMinutes} autoFocus
+            onChange={e=>setSaunaMinutes(e.target.value)} style={{maxWidth:'110px'}} />
+          <button type="button" className="btn-ghost-sm" onClick={addSauna} disabled={!Number(saunaMinutes)}>Add</button>
+          <button type="button" className="btn-ghost-sm" onClick={()=>{setShowSauna(false); setSaunaMinutes('');}}>Cancel</button>
+        </div>
+      )}
 
       <div className="field">
         <label className="label" style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
@@ -613,7 +667,14 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
         <textarea className="input" rows={2} placeholder="How'd it go?" value={notesAfter} onChange={e => setNotesAfter(e.target.value)} />
       </div>
 
+      {/* Last thing before the Log button: pick and tag photos up front, and they
+          upload themselves once the workout has been saved and has an id. */}
+      {mode === 'create' && (
+        <WorkoutPhotos key={photoFormKey} staged date={date} onStagedChange={setStagedPhotos} />
+      )}
+
       {error && <p className="form-error">{error}</p>}
+      {photoError && <p className="form-error">{photoError}</p>}
       {result && (
         <div className={`result-banner ${newPRs.length ? 'pr-banner' : ''}`}>
           {newPRs.length
@@ -632,12 +693,6 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
         <button type="button" className="btn-danger" onClick={onDelete}>
           Delete Workout
         </button>
-      )}
-
-      {/* Once a new workout exists, let them add photos to it right away —
-          the multi-photo uploader needs a real workout id, which only exists after this point. */}
-      {mode === 'create' && createdWorkoutId && (
-        <WorkoutPhotos workoutId={createdWorkoutId} date={date} />
       )}
     </form>
 

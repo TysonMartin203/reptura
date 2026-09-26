@@ -7,6 +7,7 @@ import ProfileGateModal from '../components/ProfileGateModal';
 import KitchenIllustration from '../components/KitchenIllustration';
 import RestrictionPicker from '../components/RestrictionPicker';
 import { parseIngredientForInstacart } from '../instacartUnits';
+import { KROGER_BANNERS } from '../data/krogerStores';
 
 const GOALS = ['Cut (Lose Fat)','Bulk (Gain Muscle)','Maintain','Recomp'];
 const SECTIONS = ['Produce','Meat & Seafood','Dairy & Eggs','Bread & Grains','Canned & Dry Goods','Frozen','Condiments & Oils','Snacks & Nuts','Other'];
@@ -133,8 +134,20 @@ function ShoppingList({ plan }) {
   }
 
   if (sections.length === 0) return <p className="muted">Shopping list will appear after generating a plan.</p>;
+  const checkedCount = sections.reduce((n, s) => n + list[s].filter(x => x.checked).length, 0);
   return (
     <div>
+      {/* People don't discover the tap-to-cross-off behaviour on their own, and
+          the difference shows up on the bill — so say it before the cart buttons. */}
+      <div className="glass-card" style={{marginBottom:'16px',display:'flex',gap:'10px',alignItems:'flex-start',border:'1px solid var(--accent)'}}>
+        <IconCheck style={{width:'16px',height:'16px',color:'var(--accent)',flexShrink:0,marginTop:'2px'}}/>
+        <p style={{fontSize:'13px',margin:0,lineHeight:1.5}}>
+          <strong>Already have something? Tap it.</strong> Anything you cross off is left out of your
+          cart, so you only pay for what you actually need.
+          {checkedCount > 0 && ` ${checkedCount} item${checkedCount===1?'':'s'} crossed off so far.`}
+        </p>
+      </div>
+
       {unchecked.length > 0 && (
         <div className="glass-card" style={{marginBottom:'20px'}}>
           {/* Kroger — adds items straight into the user's own Kroger cart */}
@@ -148,7 +161,10 @@ function ShoppingList({ plan }) {
             </>
           ) : !krogerStatus.connected ? (
             <>
-              <p className="muted" style={{fontSize:'12px',marginBottom:'8px'}}>Connect your Kroger account (also Ralphs, Fred Meyer, King Soopers, Smith's, Fry's, and other Kroger stores), then pick your store — after that, this list goes straight into your cart.</p>
+              <p className="muted" style={{fontSize:'12px',marginBottom:'6px'}}>Connect your Kroger account, then pick your store — after that, this list goes straight into your cart.</p>
+              <p className="muted" style={{fontSize:'11px',marginBottom:'8px',lineHeight:1.5}}>
+                <strong>Shop somewhere else?</strong> One Kroger login also covers {KROGER_BANNERS.join(', ')} — if your store is on this list, sign in with that account.
+              </p>
               {krogerError && <p className="form-error" style={{fontSize:'12px',marginBottom:'8px'}}>{krogerError}</p>}
               <button type="button" className="btn-secondary" onClick={connectKroger}>Connect Kroger</button>
             </>

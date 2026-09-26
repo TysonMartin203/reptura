@@ -3,22 +3,45 @@ const fs   = require('fs');
 const { savePhoto, getPhotos, getPhotosForWorkout, deletePhoto, updateTags } = require('../models/photo.model');
 const UPLOADS_DIR = require('../config/uploadsDir');
 
+// Tags arrive as a JSON array, a comma-separated string, or nothing at all.
+// Returns null rather than [] for "no tags" so existing rows keep their shape.
+function normalizeTags(value) {
+  if (value == null || value === '') return null;
+  let out = value;
+  if (typeof out === 'string') {
+    try { out = JSON.parse(out); } catch { out = out.split(','); }
+  }
+  if (!Array.isArray(out)) return null;
+  const cleaned = out.map(t => String(t).trim()).filter(Boolean);
+  return cleaned.length ? cleaned : null;
+}
+
 async function upload(req, res) {
   try {
     const files = req.files || [];
     if (!files.length) return res.status(400).json({ error: 'No file uploaded' });
     const { photoDate, workoutId } = req.body;
     if (!photoDate) return res.status(400).json({ error: 'photoDate required' });
-    let tags = null;
-    if (req.body.tags) {
-      try { tags = JSON.parse(req.body.tags); } catch { tags = String(req.body.tags).split(',').map(t => t.trim()).filter(Boolean); }
+    // Tags shared by every photo in the batch (the older shape).
+    let tags = normalizeTags(req.body.tags);
+
+    // Per-photo tags: an array of tag-lists, index-aligned with the uploaded
+    // files, so one batch can mix "Back & Biceps" with "Triceps". Falls back to
+    // the shared `tags` above when absent, keeping older callers working.
+    let tagsPerFile = null;
+    if (req.body.tagsPerFile) {
+      try {
+        const parsed = JSON.parse(req.body.tagsPerFile);
+        if (Array.isArray(parsed)) tagsPerFile = parsed;
+      } catch { /* malformed — fall back to the shared tags */ }
     }
 
     const saved = [];
-    for (const file of files) {
-      const filePath = `/uploads/${file.filename}`;
-      const id = await savePhoto({ userId: req.userId, filePath, photoDate, workoutId: workoutId || null, tags });
-      saved.push({ id, filePath, photoDate, workoutId: workoutId || null, tags });
+    for (let i = 0; i < files.length; i++) {
+      const filePath = `/uploads/${files[i].filename}`;
+      const fileTags = tagsPerFile ? normalizeTags(tagsPerFile[i]) : tags;
+      const id = await savePhoto({ userId: req.userId, filePath, photoDate, workoutId: workoutId || null, tags: fileTags });
+      saved.push({ id, filePath, photoDate, workoutId: workoutId || null, tags: fileTags });
     }
     res.status(201).json(saved);
   } catch (err) {

@@ -3,7 +3,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { createNotification } = require('../models/notification.model');
 const { sendPushToUser } = require('../models/push.model');
 const { findById } = require('../models/user.model');
-const { buildStatsBlock } = require('../data/prompt-helpers');
+const { buildStatsBlock, budgetRules } = require('../data/prompt-helpers');
 const { areFriends } = require('../models/friend.model');
 const { buildDeterministicRecipe } = require('../models/deterministic-recipe');
 
@@ -120,13 +120,7 @@ FAMILY MEAL PLAN — this plan must work for the whole household eating together
 
     const prompt = `You are a certified nutritionist and personal trainer. Create a budget-friendly 7-day meal plan as JSON.
 
-CRITICAL BUDGET RULES:
-- Reuse proteins and staple ingredients across the week (e.g. a rotisserie chicken or a pack of chicken thighs used in 3 different meals) so the grocery list stays short and affordable
-- Prioritize affordable proteins: eggs, canned tuna, chicken thighs, ground turkey, beans, lentils
-- Use seasonal/affordable produce: carrots, cabbage, bananas, apples, frozen vegetables
-- Staple grains: oats, rice, pasta, bread — use repeatedly across different meals
-- Keep weekly grocery cost under ${isFamily ? '$150-200 for the household' : '$75-100 for one person'}
-- Balance this with variety: reusing an INGREDIENT across the week is good (keeps cost down), but avoid serving the same or a near-identical MEAL back-to-back or on consecutive days — vary the preparation, seasoning, or pairing so it doesn't feel repetitive day to day, even when the underlying ingredients are shared
+${budgetRules(isFamily)}
 ${familySection}
 
 User stats:
@@ -201,11 +195,7 @@ async function regenerate(req, res) {
 
     const prompt = `You are a certified nutritionist and personal trainer. The user already has a meal plan called "${existing.name}" but wants it rebuilt based on updated info. Create a fresh budget-friendly 7-day meal plan as JSON.
 
-CRITICAL BUDGET RULES:
-- Reuse proteins across multiple days
-- Prioritize affordable proteins: eggs, canned tuna, chicken thighs, ground turkey, beans, lentils
-- Keep weekly grocery cost under $75-100 for one person
-- Balance this with variety: reusing an INGREDIENT across the week is good (keeps cost down), but avoid serving the same or a near-identical MEAL back-to-back or on consecutive days
+${budgetRules(false)}
 
 Updated user stats:
 ${buildStatsBlock(req.body, { prs: prText, appliances: applianceText })}
@@ -243,6 +233,20 @@ Include Breakfast, Lunch, Dinner, and one Snack per day for all 7 days.`;
   }
 }
 
+// "2 lbs boneless chicken breast, diced" -> "chicken breast". Rough on purpose:
+// it only has to be good enough to tell the model what's already on the list.
+function ingredientBase(raw) {
+  return String(raw || '')
+    .toLowerCase()
+    .split(',')[0]                                    // drop prep notes
+    .replace(/\([^)]*\)/g, ' ')                       // drop parentheticals
+    .replace(/^[\d\s./-]+/, ' ')                      // leading quantity
+    .replace(/\b\d+([./]\d+)?\b/g, ' ')               // any other numbers
+    .replace(/\b(lbs?|pounds?|oz|ounces?|g|grams?|kg|cups?|tbsp|tsp|tablespoons?|teaspoons?|cloves?|slices?|cans?|jars?|bunch(es)?|packages?|pkg|containers?|heads?|large|medium|small|boneless|skinless|fresh|frozen|dried|chopped|diced|sliced|minced|of)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // Swap a single meal
 async function swap(req, res) {
   try {
@@ -259,11 +263,34 @@ async function swap(req, res) {
         : `The user just doesn't want this specific meal — pick something meaningfully different.`;
     }
 
+    // Load the plan before asking, so the replacement can be built out of what's
+    // already on the shopping list instead of adding another thing to buy.
+    let planRow = null;
+    let alreadyBuying = '';
+    if (planId) {
+      const [[row]] = await pool.query('SELECT plan FROM MealPlans WHERE id = ? AND user_id = ?', [planId, req.userId]);
+      planRow = row || null;
+      const seen = new Set();
+      (planRow?.plan?.days || []).forEach((d, di) =>
+        (d.meals || []).forEach((m, mi) => {
+          if (di === Number(dayIdx) && mi === Number(mealIdx)) return; // the one being replaced
+          (m.ingredients || []).forEach(x => {
+            const base = ingredientBase(x);
+            if (base) seen.add(base);
+          });
+        })
+      );
+      const items = [...seen].slice(0, 60);
+      if (items.length) {
+        alreadyBuying = `\nAlready being bought for this week: ${items.join(', ')}.\nBuild the replacement out of those wherever possible. Do NOT introduce a new protein, a second cut of a protein already listed, or a specialty item used only in this one meal — each of those adds a separate purchase to the bill.`;
+      }
+    }
+
     const prompt = `Suggest one budget-friendly alternative meal to replace "${mealName}".
 Dietary restrictions: ${restrictions.length > 0 ? restrictions.join(', ') : 'none'}.
 ${reasonText}
 Available appliances: ${applianceText}.
-Match approximately: ${macroTarget.calories} calories, ${macroTarget.protein}g protein, ${macroTarget.carbs}g carbs, ${macroTarget.fat}g fat.
+Match approximately: ${macroTarget.calories} calories, ${macroTarget.protein}g protein, ${macroTarget.carbs}g carbs, ${macroTarget.fat}g fat.${alreadyBuying}
 Use affordable, common ingredients. Return ONLY JSON:
 { "name": "...", "calories": number, "protein": number, "carbs": number, "fat": number, "ingredients": ["item with amount"], "can_substitute": true }`;
 
@@ -277,11 +304,10 @@ Use affordable, common ingredients. Return ONLY JSON:
     text = text.replace(/^```json\s*/,'').replace(/\s*```$/,'').trim();
     const meal = JSON.parse(text);
 
-    // Update the plan in the database
+    // Update the plan in the database (already fetched above)
     if (planId) {
-      const [[row]] = await pool.query('SELECT plan FROM MealPlans WHERE id = ? AND user_id = ?', [planId, req.userId]);
-      if (row) {
-        const planData = row.plan;
+      if (planRow) {
+        const planData = planRow.plan;
         planData.days[dayIdx].meals[mealIdx] = { ...planData.days[dayIdx].meals[mealIdx], ...meal, swapped: true };
         await pool.query('UPDATE MealPlans SET plan = ? WHERE id = ?', [JSON.stringify(planData), planId]);
       }

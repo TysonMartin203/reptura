@@ -7,6 +7,7 @@ import AchievementIcon from '../components/AchievementIcon';
 import ProfileEditModal from '../components/ProfileEditModal';
 import { compressImage } from '../compressImage';
 import { MAP_STYLES, MAP_STYLE_STORAGE_KEY, getSavedMapStyle } from '../data/mapStyles';
+import { KROGER_BANNERS } from '../data/krogerStores';
 
 // The Profile page carries everything about *you and your account* — identity,
 // login details, appearance, units, connected stores, the meal/workout profile.
@@ -399,7 +400,10 @@ export default function Settings() {
         <div className="section-header">
           <span className="section-title">Kroger</span>
         </div>
-        <p className="muted" style={{fontSize:'12px',marginBottom:'12px'}}>Connect your Kroger account (also covers Ralphs, Fred Meyer, King Soopers, Smith's, Fry's, and other Kroger-family stores) to add a meal plan's shopping list straight into your Kroger cart.</p>
+        <p className="muted" style={{fontSize:'12px',marginBottom:'6px'}}>Connect your Kroger account to send a meal plan's shopping list straight into your cart.</p>
+        <p className="muted" style={{fontSize:'11px',marginBottom:'12px',lineHeight:1.5}}>
+          <strong>One Kroger login covers all of these stores:</strong> {KROGER_BANNERS.join(', ')}. If you shop at any of them, use that same account here.
+        </p>
         {krogerMsg && <p className={krogerStatus.connected ? 'form-success' : 'muted'} style={{fontSize:'12px',marginBottom:'10px'}}>{krogerMsg}</p>}
 
         {krogerLoading ? <div className="spinner" style={{margin:'10px auto'}}/> : !krogerStatus.configured ? (

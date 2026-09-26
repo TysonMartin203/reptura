@@ -293,7 +293,7 @@ export default function LogMeal() {
         {/* AI quick-add helpers */}
         <div className="card-form">
           <div className="glass-card" style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'12px',border:'1px solid var(--accent)'}}>
-            <HandMeasureDiagram size={52} showLine={false}/>
+            <HandMeasureDiagram size={52}/>
             <p style={{fontSize:'13px',fontWeight:'600',margin:0}}>Shoot from directly above with your open hand flat next to the food, palm facing up — top-down shots with a hand in frame give the most accurate size estimate. Set your palm width in your Meal & Workout Profile for the most accurate results.</p>
           </div>
           <div className="field">

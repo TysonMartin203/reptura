@@ -29,15 +29,16 @@ async function insertExercises(conn, workoutId, exercises, userId, date) {
     const [result] = await conn.query(
       `INSERT INTO WorkoutExercises
        (workout_id, category, exercise_name, order_index, notes,
-        sets, reps, weight, per_set_weights,
+        sets, reps, weight, per_set_weights, bodyweight,
         duration_minutes, distance, distance_unit, calories, avg_heart_rate, pace, intensity)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         workoutId, ex.category, ex.exerciseName, order++, ex.notes || null,
         isLifting ? (ex.sets || null) : null,
         isLifting ? (ex.reps || null) : null,
         isLifting ? (ex.weight != null && ex.weight !== '' ? ex.weight : null) : null,
         isLifting && ex.perSetWeights ? 1 : 0,
+        isLifting && ex.bodyweight ? 1 : 0,
         !isLifting ? (ex.durationMinutes || null) : null,
         !isLifting ? (ex.distance || null) : null,
         !isLifting ? (ex.distanceUnit || null) : null,
@@ -61,15 +62,13 @@ async function insertExercises(conn, workoutId, exercises, userId, date) {
 
     if (isLifting) {
       const maxWeight = effectiveMaxWeight(ex);
-      const isBodyweight = BODYWEIGHT_EXERCISES.has(ex.exerciseName);
-      if (maxWeight != null) {
-        const prResult = await maybeUpdatePR({
-          userId, exercise: ex.exerciseName, weight: maxWeight, date,
-          workoutId, workoutExerciseId, conn, unit: 'lbs',
-        });
-        prResults.push({ exercise: ex.exerciseName, unit: 'lbs', ...prResult });
-      } else if (isBodyweight) {
-        const maxReps = effectiveMaxReps(ex);
+      const maxReps = effectiveMaxReps(ex);
+      // A PR is "most reps" when the user ticked Bodyweight, or when a
+      // known-bodyweight exercise was logged with no weight at all. Anything
+      // with weight on the bar stays a weight PR — including weighted
+      // pull-ups and dips.
+      const repsPR = ex.bodyweight || (maxWeight == null && BODYWEIGHT_EXERCISES.has(ex.exerciseName));
+      if (repsPR) {
         if (maxReps != null) {
           const prResult = await maybeUpdatePR({
             userId, exercise: ex.exerciseName, weight: maxReps, date,
@@ -77,6 +76,12 @@ async function insertExercises(conn, workoutId, exercises, userId, date) {
           });
           prResults.push({ exercise: ex.exerciseName, unit: 'reps', ...prResult });
         }
+      } else if (maxWeight != null) {
+        const prResult = await maybeUpdatePR({
+          userId, exercise: ex.exerciseName, weight: maxWeight, date,
+          workoutId, workoutExerciseId, conn, unit: 'lbs',
+        });
+        prResults.push({ exercise: ex.exerciseName, unit: 'lbs', ...prResult });
       }
     } else {
       const cardioResult = await maybeUpdateCardioPR({

@@ -203,4 +203,54 @@ If the person describes multiple exercises, return one object per exercise, in t
   }
 }
 
-module.exports = { create, update, list, getOne, getView, removePhoto, remove, parseVoice };
+// Logs the same workout again on a new date. Exercises and sets are copied
+// exactly; notes are the user's choice (keep the originals, start blank, or
+// write new ones for this session only — the original workout is never
+// modified). PRs are evaluated normally, since this is a real session.
+async function duplicate(req, res) {
+  try {
+    const source = await getWorkoutById(req.params.id, req.userId);
+    if (!source) return res.status(404).json({ error: 'Workout not found' });
+
+    const { date, notesMode = 'same', notesBefore = '', notesAfter = '' } = req.body || {};
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return res.status(400).json({ error: 'Pick a date for the new workout' });
+
+    let before = null, after = null;
+    if (notesMode === 'same') { before = source.notes_before; after = source.notes_after; }
+    else if (notesMode === 'new') { before = notesBefore || null; after = notesAfter || null; }
+
+    const exercises = (source.exercises || []).map(e => e.category === 'lifting' ? {
+      category: 'lifting',
+      exerciseName: e.exercise_name,
+      notes: e.notes || '',
+      sets: e.sets ?? '',
+      reps: e.reps ?? '',
+      weight: e.weight ?? '',
+      perSetWeights: !!e.per_set_weights,
+      bodyweight: !!e.bodyweight,
+      setsData: (e.sets_data || []).map(s => ({ reps: s.reps ?? '', weight: s.weight ?? '' })),
+    } : {
+      category: 'cardio',
+      exerciseName: e.exercise_name,
+      notes: e.notes || '',
+      durationMinutes: e.duration_minutes ?? '',
+      distance: e.distance ?? '',
+      distanceUnit: e.distance_unit || 'mi',
+      calories: e.calories ?? '',
+      avgHeartRate: e.avg_heart_rate ?? '',
+      pace: e.pace || '',
+      intensity: e.intensity || '',
+    });
+
+    const result = await createWorkout({
+      userId: req.userId, name: source.name, date,
+      notesBefore: before, notesAfter: after, photoPath: null, exercises,
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(err.status || 500).json({ error: err.status ? err.message : 'Server error' });
+  }
+}
+
+module.exports = { create, update, list, getOne, getView, removePhoto, remove, parseVoice, duplicate };

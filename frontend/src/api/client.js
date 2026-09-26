@@ -131,6 +131,7 @@ export const api = {
   declineCrewInvite: (id)=> request('PUT',  `/api/crews/invites/${id}/decline`, {}),
   getCrewMessages: (id)  => request('GET',  `/api/crews/${id}/messages`),
   sendCrewMessage: (id,b)=> request('POST', `/api/crews/${id}/messages`, b),
+  deleteCrew:   (id)     => request('DELETE', `/api/crews/${id}`),
 
   createChallenge: (b)   => request('POST', '/api/challenges', b),
   getChallenges:   ()    => request('GET',  '/api/challenges'),

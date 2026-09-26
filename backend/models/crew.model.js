@@ -119,7 +119,27 @@ async function sendMessage(crewId, userId, message) {
   return result.insertId;
 }
 
+// Only the creator can delete. Members, messages and invites all cascade off
+// the crew_id foreign key, so removing the Crews row clears the rest.
+async function deleteCrew(crewId, userId) {
+  const [[crew]] = await pool.query('SELECT created_by FROM Crews WHERE id = ?', [crewId]);
+  if (!crew) throw Object.assign(new Error('Not found'), { status: 404 });
+  if (crew.created_by !== userId)
+    throw Object.assign(new Error('Only the person who created this crew can delete it'), { status: 403 });
+  await pool.query('DELETE FROM Crews WHERE id = ?', [crewId]);
+}
+
+// Crews flagged auto_join take every new account automatically — that's how the
+// Alpha Testers crew keeps up as people sign up. Best-effort by design: the
+// caller must not let a failure here block a registration.
+async function addToAutoJoinCrews(userId) {
+  await pool.query(
+    'INSERT IGNORE INTO CrewMembers (crew_id, user_id) SELECT id, ? FROM Crews WHERE auto_join = 1',
+    [userId]
+  );
+}
+
 module.exports = {
   createCrew, getMyCrews, getCrew, inviteMember, getCrewInvites, respondCrewInvite,
-  getMessages, sendMessage,
+  getMessages, sendMessage, deleteCrew, addToAutoJoinCrews,
 };

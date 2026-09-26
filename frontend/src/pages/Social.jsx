@@ -530,6 +530,17 @@ function CrewsTab() {
     setMsgText('');
   }
 
+  // Creator-only; the server enforces it too.
+  async function removeCrew(crew) {
+    if (!window.confirm(`Delete "${crew.name}"? Its members, messages and pending invites go with it, and this cannot be undone.`)) return;
+    setError('');
+    try {
+      await api.deleteCrew(crew.id);
+      setActive(null);
+      api.getCrews().then(setCrews).catch(console.error);
+    } catch (err) { setError(err.message); }
+  }
+
   async function inviteFriend(friendId) {
     try {
       await api.addCrewMember(active.crew.id, { friendId });
@@ -542,7 +553,12 @@ function CrewsTab() {
     const invitable = friends.filter(f => !memberIds.has(f.id) && !invited[f.id]);
     return (
       <div>
-        <button className="btn-ghost" onClick={()=>setActive(null)} style={{marginBottom:'12px'}}>← Back</button>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'12px'}}>
+          <button className="btn-ghost" onClick={()=>setActive(null)}>← Back</button>
+          {active.crew.created_by === user?.id && (
+            <button className="btn-ghost-sm" style={{color:'var(--danger)'}} onClick={()=>removeCrew(active.crew)}>Delete Crew</button>
+          )}
+        </div>
         <h3 style={{marginBottom:'6px'}}>{active.crew.name}</h3>
         <p className="muted" style={{marginBottom:'12px'}}>{active.crew.members.map(m=>m.username).join(', ')}</p>
 
@@ -608,6 +624,10 @@ function CrewsTab() {
               <div className="item-main">{c.name}</div>
               <div className="item-meta">{c.member_count} member{c.member_count===1?'':'s'}</div>
             </div>
+            {c.created_by === user?.id && (
+              <button className="btn-ghost-sm" style={{color:'var(--danger)',flexShrink:0}}
+                onClick={(e)=>{e.stopPropagation();removeCrew(c);}}>Delete</button>
+            )}
           </div>
         ))
       }

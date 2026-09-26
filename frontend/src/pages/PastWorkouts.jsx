@@ -1,3 +1,4 @@
+import DuplicateWorkoutModal from '../components/DuplicateWorkoutModal';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
@@ -7,6 +8,7 @@ export default function PastWorkouts() {
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [duplicating, setDuplicating] = useState(null);
 
   useEffect(() => {
     api.getWorkouts()
@@ -35,9 +37,20 @@ export default function PastWorkouts() {
                 <div className="item-meta">{w.exercise_count} exercise{w.exercise_count === 1 ? '' : 's'} · {mixed ? 'mixed' : w.categories}</div>
               </div>
               <span className="item-date">{formatDateStr(w.date)}</span>
+              <button type="button" className="btn-ghost-sm" style={{flexShrink:0}}
+                onClick={e => { e.preventDefault(); e.stopPropagation(); setDuplicating(w); }}>
+                Again
+              </button>
             </Link>
           );
         })
+      )}
+      {duplicating && (
+        <DuplicateWorkoutModal
+          workoutId={duplicating.id}
+          workoutName={duplicating.name || duplicating.first_exercise}
+          onClose={()=>setDuplicating(null)}
+        />
       )}
     </div>
   );

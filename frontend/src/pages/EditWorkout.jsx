@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import WorkoutForm from '../components/WorkoutForm';
 import WorkoutPhotos from '../components/WorkoutPhotos';
+import DuplicateWorkoutModal from '../components/DuplicateWorkoutModal';
 import { ALL_CARDIO_NAMES } from '../data/exercises';
 
 function toFormInitial(workout) {
@@ -21,6 +22,7 @@ function toFormInitial(workout) {
           reps: e.reps ?? '',
           weight: e.weight ?? '',
           perSetWeights: !!e.per_set_weights,
+          bodyweight: !!e.bodyweight,
           setsData: (e.sets_data || []).map(s => ({ reps: s.reps ?? '', weight: s.weight ?? '' })),
         };
       }
@@ -48,6 +50,7 @@ export default function EditWorkout() {
   const [initial, setInitial] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
+  const [showDuplicate, setShowDuplicate] = useState(false);
 
   useEffect(() => {
     api.getWorkout(id)
@@ -73,8 +76,14 @@ export default function EditWorkout() {
     <div className="page">
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'20px'}}>
         <h2 className="page-title" style={{marginBottom:0}}>Edit Workout</h2>
-        <button type="button" className="link-small" style={{background:'none',border:'none',cursor:'pointer'}} onClick={()=>navigate(-1)}>← Back</button>
+        <div style={{display:'flex',gap:'12px',alignItems:'center'}}>
+          <button type="button" className="btn-ghost-sm" onClick={()=>setShowDuplicate(true)}>Do It Again</button>
+          <button type="button" className="link-small" style={{background:'none',border:'none',cursor:'pointer'}} onClick={()=>navigate(-1)}>← Back</button>
+        </div>
       </div>
+      {showDuplicate && (
+        <DuplicateWorkoutModal workoutId={id} workoutName={initial?.name} onClose={()=>setShowDuplicate(false)} />
+      )}
       {/* The multi-photo uploader lives here, before the Save Changes / Delete
           Workout buttons inside the form below — it's the one and only place
           to add photos to this workout now. */}

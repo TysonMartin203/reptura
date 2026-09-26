@@ -51,4 +51,22 @@ function buildStatsBlock(profile = {}, extras = {}) {
   return lines.map(l => `- ${l}`).join('\n');
 }
 
-module.exports = { buildStatsBlock, formatHeight };
+// Shared by the "generate" and "rebuild" meal plan prompts so the two can't
+// drift. The rule that actually moves the grocery bill is the SKU count: the
+// cost of a plan tracks how many separate things you have to buy, far more than
+// which things they are. Two chicken cuts is two packages; one cut cooked two
+// ways is one.
+function budgetRules(isFamily) {
+  const weekly = isFamily ? '$150-200 for the household' : '$75-100 for one person';
+  return `CRITICAL BUDGET RULES — the goal is the SHORTEST possible grocery list, not just cheap items:
+- ONE CUT PER PROTEIN. If any meal uses chicken breast, then EVERY chicken meal that week uses breast — never add thighs, tenders or a whole chicken as a second purchase. Grilled chicken breast on Monday and fried chicken on Thursday both use the same breasts. Same rule for beef (one cut), pork, and fish.
+- Before adding any ingredient, check whether something already in the plan does the job. Adding a new item must be worth its own package price.
+- Buy-in-package thinking: if a meal needs part of an item (half a cabbage, a bunch of cilantro, a tub of sour cream), plan other meals that finish the rest. Nothing should be bought for a single quarter-used purpose.
+- One format per staple: one rice, one pasta shape, one cheese, one cooking oil, one vinegar — not several.
+- No single-use specialty items. A spice blend, sauce or condiment that appears in only one meal is a wasted purchase unless it's already a pantry staple.
+- Prioritize affordable proteins: eggs, canned tuna, chicken thighs, ground turkey, beans, lentils. Seasonal, cheap produce: carrots, cabbage, onions, bananas, apples, frozen vegetables. Staple grains: oats, rice, pasta, bread.
+- Keep weekly grocery cost under ${weekly}.
+- Balance all this with variety: reusing an INGREDIENT across the week is the point, but avoid serving the same or a near-identical MEAL back-to-back or on consecutive days — change the preparation, seasoning, or pairing so shared ingredients don't feel repetitive.`;
+}
+
+module.exports = { buildStatsBlock, formatHeight, budgetRules };
