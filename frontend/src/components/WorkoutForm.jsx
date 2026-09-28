@@ -361,7 +361,10 @@ function clearDraft() {
   try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
 }
 
-export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDelete }) {
+// onLogged(summary): create mode only. When given, the page takes over after a
+// successful save (Log Workout sends you to Past Workouts with a PR popup)
+// instead of the form resetting itself and showing an inline banner.
+export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDelete, onLogged }) {
   const { user } = useAuth();
   // Drafts only apply to a genuinely fresh log (not editing, not prefilled from a plan) —
   // protects against losing everything if you navigate away mid-entry.
@@ -573,6 +576,8 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
         setCreatedWorkoutId(data.workoutId || null);
         // The workout saved; photos are a separate request, so a failure here
         // must not read as the workout having failed.
+        let photoFailure = '';
+        const photoCount = stagedPhotos.length;
         if (stagedPhotos.length && data.workoutId) {
           try {
             const fd = new FormData();
@@ -584,8 +589,19 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
             setStagedPhotos([]);
             setPhotoFormKey(k => k + 1); // remount the picker so it comes back empty
           } catch (photoErr) {
-            setPhotoError(`Workout saved, but the photos didn't upload: ${photoErr.message}`);
+            photoFailure = `Workout saved, but the photos didn't upload: ${photoErr.message}`;
+            setPhotoError(photoFailure);
           }
+        }
+        if (onLogged) {
+          onLogged({
+            name: name.trim() || null,
+            exerciseCount: payload.exercises.length,
+            photoCount: photoFailure ? 0 : photoCount,
+            prResults: data.prResults || [],
+            photoError: photoFailure || null,
+          });
+          return; // the page navigates away; nothing left to reset here
         }
         setName('');
         setExercises([blankLiftingExercise()]);

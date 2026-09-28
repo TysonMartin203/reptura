@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import AiQuotaBadge from '../components/AiQuotaBadge';
 import { today, formatDateStr } from '../dateUtils';
 import { IconTrash, IconCamera, IconPlus } from '../components/Icons';
 import HandMeasureDiagram from '../components/HandMeasureDiagram';
@@ -306,6 +307,7 @@ export default function LogMeal() {
           <label htmlFor="food-photo-input" className="btn-secondary" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',cursor:'pointer',marginBottom:'10px'}}>
             <IconCamera style={{width:'16px',height:'16px'}}/> {scanning ? 'Reading photo…' : 'Take or Choose a Photo'}
           </label>
+          <AiQuotaBadge feature="food_scan" style={{marginTop:'-4px',marginBottom:'10px'}}/>
           {scanError && <p className="form-error" style={{marginBottom:'8px'}}>{scanError}</p>}
           {scanResult && (
             <div className="glass-card" style={{marginBottom:'10px',padding:'12px'}}>

@@ -6,7 +6,7 @@ import { today } from '../dateUtils';
 
 // Logs a past workout again on a new date. The original is never changed —
 // notes are either carried over, left blank, or written fresh for the new one.
-export default function DuplicateWorkoutModal({ workoutId, workoutName, onClose }) {
+export default function DuplicateWorkoutModal({ workoutId, workoutName, exerciseCount, onClose }) {
   const navigate = useNavigate();
   const [date, setDate] = useState(today());
   const [notesMode, setNotesMode] = useState('same');
@@ -20,7 +20,14 @@ export default function DuplicateWorkoutModal({ workoutId, workoutName, onClose 
     try {
       const res = await api.duplicateWorkout(workoutId, { date, notesMode, notesBefore, notesAfter });
       onClose();
-      navigate(`/workouts/${res.workoutId}`);
+      // Same landing as logging a workout: Past Workouts, with the PR popup.
+      navigate('/log/history', { state: { logged: {
+        name: workoutName || null,
+        exerciseCount: exerciseCount ?? 0,
+        photoCount: 0,
+        prResults: res.prResults || [],
+        photoError: null,
+      } } });
     } catch (err) { setError(err.message); setSaving(false); }
   }
 

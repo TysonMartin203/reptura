@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
+const aiQuota = require('../middleware/aiQuota');
 const {
   getTemplates, useTemplate,
   listPlans, getPlan, renamePlan, toggleFavorite, deletePlan, sharePlan,
@@ -16,8 +17,8 @@ router.put('/:id/name',        renamePlan);
 router.put('/:id/favorite',    toggleFavorite);
 router.delete('/:id',          deletePlan);
 router.post('/:id/share',      sharePlan);
-router.post('/:id/regenerate', regenerate);
-router.post('/generate',       generate);
+router.post('/:id/regenerate', aiQuota('workout_plan'), regenerate);
+router.post('/generate',       aiQuota('workout_plan'), generate);
 router.post('/swap-exercise',  swapExercise);
 router.post('/edit-exercise',  editExercise);
 router.post('/exercise-info',  exerciseInfo);

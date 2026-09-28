@@ -2,14 +2,30 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const pool = require('../config/db');
 const { createUser, findByEmail, findByUsername } = require('../models/user.model');
+const { grantPremium, revokePremium } = require('../models/premium.model');
 
 async function listUsers(req, res) {
   try {
-    const [rows] = await pool.query(
-      `SELECT id, username, email, is_admin, google_id IS NOT NULL AS has_google,
-              password_hash IS NULL AS needs_password, created_at
-       FROM Users ORDER BY created_at DESC`
-    );
+    let rows;
+    try {
+      // Premium columns — see MIGRATION_minor_v26.
+      [rows] = await pool.query(
+        `SELECT u.id, u.username, u.email, u.is_admin, u.google_id IS NOT NULL AS has_google,
+                u.password_hash IS NULL AS needs_password, u.created_at,
+                (u.premium_until IS NOT NULL AND u.premium_until > UTC_TIMESTAMP()) AS premium_granted,
+                u.premium_until,
+                (SELECT c.name FROM CrewMembers m JOIN Crews c ON c.id = m.crew_id
+                  WHERE m.user_id = u.id AND c.grants_premium = 1 ORDER BY c.id LIMIT 1) AS premium_crew
+         FROM Users u ORDER BY u.created_at DESC`
+      );
+    } catch {
+      // Migration not run yet — still show the list, just without premium info.
+      [rows] = await pool.query(
+        `SELECT id, username, email, is_admin, google_id IS NOT NULL AS has_google,
+                password_hash IS NULL AS needs_password, created_at
+         FROM Users ORDER BY created_at DESC`
+      );
+    }
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -78,7 +94,7 @@ async function resetUserPassword(req, res) {
 async function listCrews(req, res) {
   try {
     const [rows] = await pool.query(
-      `SELECT c.id, c.name, c.created_at, u.username AS creator_username,
+      `SELECT c.*, u.username AS creator_username,
               (SELECT COUNT(*) FROM CrewMembers cm WHERE cm.crew_id = c.id) AS member_count
        FROM Crews c LEFT JOIN Users u ON u.id = c.created_by
        ORDER BY c.created_at DESC`
@@ -113,4 +129,40 @@ async function userWorkouts(req, res) {
   }
 }
 
-module.exports = { listUsers, createAccount, deleteAccount, resetUserPassword, listCrews, userWorkouts };
+// body: { days } for a limited grant, or nothing for no end date.
+async function setUserPremium(req, res) {
+  try {
+    const days = req.body?.days ? Number(req.body.days) : null;
+    if (days != null && (!Number.isFinite(days) || days <= 0 || days > 3650))
+      return res.status(400).json({ error: 'Days must be between 1 and 3650' });
+    await grantPremium(req.params.id, { days });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+
+// Clears a direct grant only. Premium that comes from a crew stays until the
+// person leaves that crew (or the crew stops granting it).
+async function clearUserPremium(req, res) {
+  try {
+    await revokePremium(req.params.id);
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+
+// The two crew switches: auto_join (new signups join automatically) and
+// grants_premium (members are premium). Turning auto_join off on Alpha Testers
+// is how new signups start landing on the free plan.
+async function updateCrewFlags(req, res) {
+  try {
+    const sets = [], vals = [];
+    for (const key of ['auto_join', 'grants_premium']) {
+      if (typeof req.body?.[key] === 'boolean') { sets.push(`${key} = ?`); vals.push(req.body[key] ? 1 : 0); }
+    }
+    if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+    const [r] = await pool.query(`UPDATE Crews SET ${sets.join(', ')} WHERE id = ?`, [...vals, req.params.id]);
+    if (!r.affectedRows) return res.status(404).json({ error: 'Crew not found' });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+}
+
+module.exports = { listUsers, createAccount, deleteAccount, resetUserPassword, listCrews, userWorkouts, setUserPremium, clearUserPremium, updateCrewFlags };

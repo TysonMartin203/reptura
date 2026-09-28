@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import AiQuotaBadge from '../components/AiQuotaBadge';
 import { useAuth } from '../context/AuthContext';
 import { today } from '../dateUtils';
 import { IconTrash } from '../components/Icons';
@@ -212,6 +213,7 @@ function NewRacePlan({ onCancel, onCreated }) {
         <button className="btn-primary" type="submit" disabled={generating}>
           {generating ? 'Building your plan…' : 'Build My Plan'}
         </button>
+        <AiQuotaBadge feature="race_plan"/>
         {generating && <p className="muted" style={{ fontSize: '12px', textAlign: 'center' }}>Longer races like an Ironman can take a couple of minutes — keep this screen open.</p>}
       </form>
     </div>

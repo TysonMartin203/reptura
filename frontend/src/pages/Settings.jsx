@@ -8,6 +8,7 @@ import ProfileEditModal from '../components/ProfileEditModal';
 import { compressImage } from '../compressImage';
 import { MAP_STYLES, MAP_STYLE_STORAGE_KEY, getSavedMapStyle } from '../data/mapStyles';
 import { KROGER_BANNERS } from '../data/krogerStores';
+import PremiumStatusCard from '../components/PremiumStatusCard';
 
 // The Profile page carries everything about *you and your account* — identity,
 // login details, appearance, units, connected stores, the meal/workout profile.
@@ -251,6 +252,8 @@ export default function Settings() {
         onClick={()=>navigate('/account')}>
         <IconGear style={{width:'16px',height:'16px'}}/> Notifications &amp; Feed
       </button>
+
+      <PremiumStatusCard/>
 
       {/* Bio */}
       <div className="section">

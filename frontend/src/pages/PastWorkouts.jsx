@@ -1,21 +1,36 @@
 import DuplicateWorkoutModal from '../components/DuplicateWorkoutModal';
+import WorkoutLoggedModal from '../components/WorkoutLoggedModal';
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { formatDateStr } from '../dateUtils';
 
 export default function PastWorkouts() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [duplicating, setDuplicating] = useState(null);
+  // Set when arriving straight from logging (or "Do it again") — see LogWorkout.
+  const [logged, setLogged] = useState(location.state?.logged || null);
 
+  // location.key changes on every navigation, including landing here again
+  // from "Again" while already on this page, so the list and popup refresh.
   useEffect(() => {
+    if (location.state?.logged) setLogged(location.state.logged);
+    // Reloads after the first are silent — no spinner flash behind the popup.
     api.getWorkouts()
       .then(setWorkouts)
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function closeLogged() {
+    setLogged(null);
+    // Drop the state so a refresh or Back doesn't show the popup again.
+    navigate(location.pathname, { replace: true, state: null });
+  }
 
   return (
     <div className="page">
@@ -49,9 +64,11 @@ export default function PastWorkouts() {
         <DuplicateWorkoutModal
           workoutId={duplicating.id}
           workoutName={duplicating.name || duplicating.first_exercise}
+          exerciseCount={duplicating.exercise_count}
           onClose={()=>setDuplicating(null)}
         />
       )}
+      {logged && <WorkoutLoggedModal summary={logged} onClose={closeLogged} />}
     </div>
   );
 }

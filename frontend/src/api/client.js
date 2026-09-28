@@ -1,13 +1,34 @@
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 function getToken() { return localStorage.getItem('reptura_token'); }
 
+// Major AI endpoints that count against a free account's monthly allowance.
+// Mirrors the aiQuota() routes on the backend; used only to refresh the
+// "N free left" badges after a successful generation.
+const METERED = [
+  /^\/api\/meals\/(generate|generate-single|generate-day|\d+\/regenerate)$/,
+  /^\/api\/workout-plans\/(generate|\d+\/regenerate)$/,
+  /^\/api\/race-plans$/,
+  /^\/api\/meal-logs\/(recognize|recognize-label)$/,
+];
+
+// A 402 PREMIUM_REQUIRED from any call opens the upgrade popup (see
+// PremiumContext), so no individual page has to handle it.
+function announce(method, path, res, data) {
+  if (res.status === 402 && data?.code === 'PREMIUM_REQUIRED') {
+    window.dispatchEvent(new CustomEvent('reptura:premium-required', { detail: data }));
+  } else if (res.ok && method === 'POST' && METERED.some(r => r.test(path))) {
+    window.dispatchEvent(new Event('reptura:ai-used'));
+  }
+}
+
 async function request(method, path, body) {
   const headers = { 'Content-Type': 'application/json' };
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, { method, headers, body: body != null ? JSON.stringify(body) : undefined });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.error || 'Request failed'), { status: res.status });
+  announce(method, path, res, data);
+  if (!res.ok) throw Object.assign(new Error(data.error || 'Request failed'), { status: res.status, code: data.code });
   return data;
 }
 
@@ -15,7 +36,8 @@ async function uploadFile(path, formData, method = 'POST') {
   const token = getToken();
   const res = await fetch(`${BASE}${path}`, { method, headers: token ? { Authorization: `Bearer ${token}` } : {}, body: formData });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Upload failed');
+  announce(method, path, res, data);
+  if (!res.ok) throw Object.assign(new Error(data.error || 'Upload failed'), { status: res.status, code: data.code });
   return data;
 }
 
@@ -37,6 +59,10 @@ export const api = {
   changeEmail: (b) => request('PUT', '/api/auth/change-email', b),
   changeUsername: (b) => request('PUT', '/api/auth/change-username', b),
   adminListUsers: () => request('GET', '/api/admin/users'),
+  adminGrantPremium:  (id, days) => request('POST', `/api/admin/users/${id}/premium`, days ? { days } : {}),
+  adminRevokePremium: (id)       => request('DELETE', `/api/admin/users/${id}/premium`),
+  adminSetCrewFlags:  (id, flags) => request('PUT', `/api/admin/crews/${id}/flags`, flags),
+  getPremiumStatus: () => request('GET', '/api/premium/status'),
   adminCreateUser: (b) => request('POST', '/api/admin/users', b),
   adminDeleteUser: (id) => request('DELETE', `/api/admin/users/${id}`),
   adminResetPassword: (id) => request('POST', `/api/admin/users/${id}/reset-password`, {}),

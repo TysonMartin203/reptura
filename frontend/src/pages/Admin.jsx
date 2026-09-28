@@ -51,6 +51,30 @@ export default function Admin() {
     catch (err) { setError(err.message); }
   }
 
+  // Direct grants only — premium that comes from a crew is managed on the Crews tab.
+  async function grantPremium(u) {
+    const input = window.prompt(`Grant Premium to ${u.username}.\n\nNumber of days, or leave blank for no end date:`, '');
+    if (input === null) return;
+    const days = input.trim() ? Number(input) : null;
+    if (days !== null && (!Number.isFinite(days) || days <= 0)) { setError('Enter a positive number of days, or leave it blank.'); return; }
+    try { await api.adminGrantPremium(u.id, days); loadUsers(); } catch (err) { setError(err.message); }
+  }
+  async function revokePremium(u) {
+    if (!window.confirm(`Remove ${u.username}'s direct Premium grant?${u.premium_crew ? ` They'll keep Premium through ${u.premium_crew} while they're in it.` : ''}`)) return;
+    try { await api.adminRevokePremium(u.id); loadUsers(); } catch (err) { setError(err.message); }
+  }
+  async function toggleCrewFlag(c, key) {
+    const next = !Number(c[key]);
+    const warn = key === 'auto_join' && !next
+      ? `Stop adding new signups to ${c.name}?${Number(c.grants_premium) ? ' New accounts will start on the free plan; current members keep Premium.' : ''}`
+      : key === 'grants_premium' && !next
+        ? `Stop ${c.name} from granting Premium? Its ${c.member_count} member${c.member_count===1?'':'s'} lose Premium unless granted it directly.`
+        : null;
+    if (warn && !window.confirm(warn)) return;
+    try { await api.adminSetCrewFlags(c.id, { [key]: next }); loadCrews(); if (key === 'grants_premium') loadUsers(); }
+    catch (err) { setError(err.message); }
+  }
+
   async function viewWorkouts(u) {
     setViewingUser(u);
     setUserWorkouts(null);
@@ -122,10 +146,21 @@ export default function Admin() {
               <div style={{flex:1,minWidth:'160px'}}>
                 <div className="item-main">{u.username} {u.is_admin ? <span style={{fontSize:'10px',color:'var(--accent)',fontWeight:'700'}}>ADMIN</span> : null}</div>
                 <div className="item-meta">{u.email}{u.has_google ? ' · Google' : ''}{u.needs_password ? ' · needs password' : ''}</div>
+                {'premium_crew' in u && (
+                  <div className="item-meta" style={{color: (u.premium_crew || Number(u.premium_granted)) ? 'var(--accent)' : undefined, fontWeight: (u.premium_crew || Number(u.premium_granted)) ? 600 : undefined}}>
+                    {u.premium_crew && Number(u.premium_granted) ? `Premium · ${u.premium_crew} + direct grant`
+                      : u.premium_crew ? `Premium · via ${u.premium_crew}`
+                      : Number(u.premium_granted) ? `Premium · granted${u.premium_until && !String(u.premium_until).startsWith('9999') ? ` until ${new Date(u.premium_until).toLocaleDateString()}` : ''}`
+                      : 'Free plan'}
+                  </div>
+                )}
               </div>
               <div style={{display:'flex',gap:'6px',flexWrap:'wrap'}}>
                 <button className="btn-ghost-sm" onClick={()=>viewWorkouts(u)}>Workouts</button>
                 <button className="btn-ghost-sm" onClick={()=>resetPassword(u.id, u.username)}>New Password</button>
+                {'premium_crew' in u && (Number(u.premium_granted)
+                  ? <button className="btn-ghost-sm" onClick={()=>revokePremium(u)}>Remove Premium</button>
+                  : <button className="btn-ghost-sm" onClick={()=>grantPremium(u)}>Grant Premium</button>)}
                 <button className="btn-ghost-sm" style={{color:'var(--danger)'}} onClick={()=>deleteUser(u.id, u.username)}>Delete</button>
               </div>
             </div>
@@ -139,6 +174,20 @@ export default function Admin() {
             <div style={{flex:1}}>
               <div className="item-main">{c.name}</div>
               <div className="item-meta">by {c.creator_username || 'unknown'} · {c.member_count} member{c.member_count===1?'':'s'}</div>
+              {'auto_join' in c && (
+                <div style={{display:'flex',gap:'16px',flexWrap:'wrap',marginTop:'8px'}}>
+                  <label className="checkbox-row" style={{fontSize:'12px'}}>
+                    <input type="checkbox" checked={!!Number(c.auto_join)} onChange={()=>toggleCrewFlag(c, 'auto_join')}/>
+                    <span>New signups join automatically</span>
+                  </label>
+                  {'grants_premium' in c && (
+                    <label className="checkbox-row" style={{fontSize:'12px'}}>
+                      <input type="checkbox" checked={!!Number(c.grants_premium)} onChange={()=>toggleCrewFlag(c, 'grants_premium')}/>
+                      <span>Members get Premium</span>
+                    </label>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ))

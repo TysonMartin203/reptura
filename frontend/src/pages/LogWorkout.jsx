@@ -1,9 +1,10 @@
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { api } from '../api/client';
 import WorkoutForm from '../components/WorkoutForm';
 
 export default function LogWorkout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const prefill = location.state; // { initialExercises, planLabel } when arriving from a workout plan
 
   return (
@@ -20,6 +21,10 @@ export default function LogWorkout() {
           mode="create"
           initial={prefill?.initialExercises ? { exercises: prefill.initialExercises } : undefined}
           onSubmit={(payload) => api.logWorkout(payload)}
+          // Land on Past Workouts with the new workout at the top, and let the
+          // PR popup there do the celebrating. replace: so Back doesn't return
+          // to an empty log form.
+          onLogged={(summary) => navigate('/log/history', { replace: true, state: { logged: summary } })}
         />
       </div>
     </div>

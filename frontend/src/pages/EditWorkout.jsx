@@ -82,7 +82,7 @@ export default function EditWorkout() {
         </div>
       </div>
       {showDuplicate && (
-        <DuplicateWorkoutModal workoutId={id} workoutName={initial?.name} onClose={()=>setShowDuplicate(false)} />
+        <DuplicateWorkoutModal workoutId={id} workoutName={initial?.name} exerciseCount={initial?.exercises?.length} onClose={()=>setShowDuplicate(false)} />
       )}
       {/* The multi-photo uploader lives here, before the Save Changes / Delete
           Workout buttons inside the form below — it's the one and only place

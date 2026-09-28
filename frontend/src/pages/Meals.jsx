@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import AiQuotaBadge from '../components/AiQuotaBadge';
 import MealPlanIcon from '../components/MealPlanIcons';
 import { IconSparkle, IconCheck, IconEdit, IconDollar, IconChefHat, IconStar, IconTrash, IconClock, IconFlame } from '../components/Icons';
 import ProfileGateModal from '../components/ProfileGateModal';
@@ -1038,6 +1039,7 @@ export default function Meals() {
               {generating ? 'Generating…' : planScope==='single' ? 'Suggest a Meal' : planScope==='day' ? 'Generate Today\'s Plan' : planScope==='3day' ? 'Generate 3-Day Plan' : 'Generate AI Meal Plan'}
             </span>
           </button>
+          <AiQuotaBadge feature="meal_plan" style={{marginTop:'-6px'}}/>
           {generating && <p className="muted" style={{textAlign:'center',fontSize:'12px'}}>This takes about {planScope==='single'?'a few':'15-20'} seconds…</p>}
         </form>
       </div>

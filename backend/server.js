@@ -65,6 +65,7 @@ app.use('/api/family-members', require('./routes/family.routes'));
 app.use('/api/kroger',       require('./routes/kroger.routes'));
 app.use('/api/race-plans',   require('./routes/race.routes'));
 app.use('/api/users',        require('./routes/user.routes'));
+app.use('/api/premium',      require('./routes/premium.routes'));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 

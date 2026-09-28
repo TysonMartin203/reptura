@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import AiQuotaBadge from '../components/AiQuotaBadge';
 import WorkoutPlanIcon from '../components/WorkoutPlanIcons';
 import { IconSparkle, IconEdit, IconStar, IconSleep } from '../components/Icons';
 import { formatDuration } from '../format';
@@ -593,6 +594,7 @@ export default function WorkoutPlans() {
           <button className="btn-primary" type="submit" disabled={generating}>
             {generating ? 'Building your workout…' : <><IconSparkle style={{width:'16px',height:'16px',marginRight:'6px'}}/>{scope==='day' ? 'Generate Workout' : 'Generate Plan'}</>}
           </button>
+          <AiQuotaBadge feature="workout_plan"/>
         </form>
         {dayResult && (
           <div className="glass-card" style={{marginTop:'16px'}}>
@@ -620,9 +622,12 @@ export default function WorkoutPlans() {
         <button className="btn-ghost-sm" onClick={()=>setView('custom')}>
           + Build Your Own
         </button>
-        <button className="btn-primary" onClick={()=>setShowGate(true)}>
-          <IconSparkle style={{width:'16px',height:'16px',marginRight:'6px'}}/>Generate an AI Plan
-        </button>
+        <div>
+          <button className="btn-primary" onClick={()=>setShowGate(true)}>
+            <IconSparkle style={{width:'16px',height:'16px',marginRight:'6px'}}/>Generate an AI Plan
+          </button>
+          <AiQuotaBadge feature="workout_plan"/>
+        </div>
       </div>
 
       {plans.length > 0 && (
