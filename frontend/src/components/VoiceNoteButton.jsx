@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useVoiceNote } from '../useVoiceNote';
 import { IconMic } from './Icons';
 
-export default function VoiceNoteButton({ onTranscript, label = 'Voice Note' }) {
+// canStart(): optional — return false to keep the mic off (e.g. a free account
+// that's out of voice entries opens the upgrade popup instead).
+export default function VoiceNoteButton({ onTranscript, label = 'Voice Note', canStart }) {
   const { listening, transcript, error, start, stop, supported } = useVoiceNote();
   const wasListening = useRef(false);
   const [emptyNotice, setEmptyNotice] = useState(false);
@@ -25,7 +27,12 @@ export default function VoiceNoteButton({ onTranscript, label = 'Voice Note' }) 
         type="button"
         className="btn-secondary"
         style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',width:'100%',color: listening ? 'var(--danger)' : undefined}}
-        onClick={() => { setEmptyNotice(false); listening ? stop() : start(); }}
+        onClick={() => {
+          setEmptyNotice(false);
+          if (listening) { stop(); return; }
+          if (canStart && canStart() === false) return;
+          start();
+        }}
       >
         <IconMic style={{width:'16px',height:'16px'}}/> {listening ? 'Listening… tap to stop' : label}
       </button>

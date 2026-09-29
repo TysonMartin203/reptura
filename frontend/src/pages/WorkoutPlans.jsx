@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import { workoutNameFromFocus } from '../workoutNames';
 import AiQuotaBadge from '../components/AiQuotaBadge';
 import WorkoutPlanIcon from '../components/WorkoutPlanIcons';
 import { IconSparkle, IconEdit, IconStar, IconSleep } from '../components/Icons';
@@ -178,8 +179,8 @@ function PlanDetail({ planId, onBack, onUpdate }) {
     onUpdate?.();
   }
 
-  function logThisWorkout(exercises, dayLabel) {
-    navigate('/log/new', { state: { initialExercises: exercises.map(toFormExercise), planLabel: dayLabel } });
+  function logThisWorkout(exercises, dayLabel, focus) {
+    navigate('/log/new', { state: { initialExercises: exercises.map(toFormExercise), planLabel: dayLabel, initialName: workoutNameFromFocus(focus) } });
   }
 
   async function openShare() {
@@ -303,7 +304,7 @@ function PlanDetail({ planId, onBack, onUpdate }) {
             <>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
                 <span style={{fontWeight:'700',fontSize:'15px'}}>{plan.days[dayIdx].focus}</span>
-                <button className="btn-primary" style={{width:'auto',padding:'8px 16px',fontSize:'13px'}} onClick={()=>logThisWorkout(plan.days[dayIdx].exercises, `${plan.days[dayIdx].day} — ${plan.days[dayIdx].focus} (${data.name})`)}>Log this workout</button>
+                <button className="btn-primary" style={{width:'auto',padding:'8px 16px',fontSize:'13px'}} onClick={()=>logThisWorkout(plan.days[dayIdx].exercises, `${plan.days[dayIdx].day} — ${plan.days[dayIdx].focus} (${data.name})`, plan.days[dayIdx].focus)}>Log this workout</button>
               </div>
               {plan.days[dayIdx].exercises.map((ex,i) => (
                 <ExerciseRow key={i} ex={ex} planId={planId} dayIdx={dayIdx} exIdx={i} onSwap={(newEx)=>updateExerciseAt(dayIdx,i,newEx)} />
@@ -315,7 +316,7 @@ function PlanDetail({ planId, onBack, onUpdate }) {
         <>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}>
             <span style={{fontWeight:'700',fontSize:'15px'}}>{plan.focus}</span>
-            <button className="btn-primary" style={{width:'auto',padding:'8px 16px',fontSize:'13px'}} onClick={()=>logThisWorkout(plan.exercises, `${plan.focus} (${data.name})`)}>Log this workout</button>
+            <button className="btn-primary" style={{width:'auto',padding:'8px 16px',fontSize:'13px'}} onClick={()=>logThisWorkout(plan.exercises, `${plan.focus} (${data.name})`, plan.focus)}>Log this workout</button>
           </div>
           {plan.exercises.map((ex,i) => (
             <ExerciseRow key={i} ex={ex} planId={planId} dayIdx={null} exIdx={i} onSwap={(newEx)=>updateExerciseAt(null,i,newEx)} />
@@ -514,7 +515,7 @@ export default function WorkoutPlans() {
   }
 
   function logDayResult() {
-    navigate('/log/new', { state: { initialExercises: dayResult.exercises.map(toFormExercise), planLabel: dayResult.focus || 'AI Workout' } });
+    navigate('/log/new', { state: { initialExercises: dayResult.exercises.map(toFormExercise), planLabel: dayResult.focus || 'AI Workout', initialName: workoutNameFromFocus(dayResult.focus) } });
   }
 
   async function useTemplate(id, name) {

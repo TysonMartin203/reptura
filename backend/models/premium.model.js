@@ -9,6 +9,7 @@ const FEATURES = {
   workout_plan: { label: 'AI workout plans',          free: 3 },
   race_plan:    { label: 'race training plans',       free: 3 },
   food_scan:    { label: 'food photo & label scans',  free: 3 },
+  voice_log:    { label: 'voice exercise entries',    free: 3 },
 };
 
 // Premium comes from either place:

@@ -263,6 +263,7 @@ function RacePlanDetail({ id, onBack }) {
     navigate('/log/new', { state: {
       initialExercises: exercises,
       planLabel: `${data.race_name || data.race_type} · Week ${date.w}, ${day} — ${title}`,
+      initialName: title || '', // session titles are already names ("Tempo Run")
     } });
   }
 

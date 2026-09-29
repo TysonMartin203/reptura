@@ -47,14 +47,15 @@ export default function Dashboard() {
       <h2 className="page-title" style={{marginBottom:'20px',display:'flex',alignItems:'center',gap:'8px'}}>{user.username} <IconWave style={{width:'20px',height:'20px',color:'var(--accent)'}}/></h2>
 
       <div className="stat-row">
-        <div className="stat-card" style={{animationDelay:'.05s'}}>
+        {/* Same destinations as the stat cards on the Progress tab. */}
+        <Link to="/log/history" className="stat-card" style={{animationDelay:'.05s',textDecoration:'none',color:'inherit',cursor:'pointer'}}>
           <span className="stat-num">{workouts.length}</span>
           <span className="stat-label">Workouts</span>
-        </div>
-        <div className="stat-card" style={{animationDelay:'.1s'}}>
+        </Link>
+        <Link to="/photos?show=strength" className="stat-card" style={{animationDelay:'.1s',textDecoration:'none',color:'inherit',cursor:'pointer'}}>
           <span className="stat-num">{prs.length}</span>
           <span className="stat-label">PRs Set</span>
-        </div>
+        </Link>
         <div className="stat-card" style={{animationDelay:'.15s'}}>
           <span className="stat-num" style={{display:'flex',alignItems:'center',gap:'4px',justifyContent:'center'}}>
             {streak}

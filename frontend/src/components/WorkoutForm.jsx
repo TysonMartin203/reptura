@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { LIFTING_EXERCISES, CARDIO_ACTIVITIES, CARDIO_TYPES, SPORT_NAMES, INTENSITY_LEVELS, DISTANCE_UNITS, calculateCardioCalories, formatPace } from '../data/exercises';
 import { today } from '../dateUtils';
 import { IconTrophy, IconCheck } from './Icons';
 import VoiceNoteButton from './VoiceNoteButton';
+import AiQuotaBadge from './AiQuotaBadge';
+import { usePremium } from '../context/PremiumContext';
 import VoiceAppendButton from './VoiceAppendButton';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
@@ -346,38 +348,20 @@ function ExerciseCard({ ex, index, onChange, onRemove, canRemove, profileWeight 
   );
 }
 
-const DRAFT_KEY = 'reptura_workout_draft';
-
-function loadDraft() {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-function saveDraft(data) {
-  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch { /* storage full or unavailable — not critical */ }
-}
-function clearDraft() {
-  try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
-}
-
 // onLogged(summary): create mode only. When given, the page takes over after a
 // successful save (Log Workout sends you to Past Workouts with a PR popup)
 // instead of the form resetting itself and showing an inline banner.
-export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDelete, onLogged }) {
+// onChange(snapshot): called whenever the user changes anything (never for the
+// starting values), so the page can keep an unfinished-workout draft.
+export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDelete, onLogged, onChange }) {
   const { user } = useAuth();
-  // Drafts only apply to a genuinely fresh log (not editing, not prefilled from a plan) —
-  // protects against losing everything if you navigate away mid-entry.
-  const isDraftable = mode === 'create' && !initial;
-  const draft = isDraftable ? loadDraft() : null;
-  const [usingDraft, setUsingDraft] = useState(!!draft);
 
-  const [name,         setName]         = useState(draft?.name ?? initial?.name ?? '');
-  const [date,         setDate]         = useState(draft?.date ?? initial?.date ?? today());
-  const [notesBefore,  setNotesBefore]  = useState(draft?.notesBefore ?? initial?.notesBefore ?? '');
-  const [notesAfter,   setNotesAfter]   = useState(draft?.notesAfter ?? initial?.notesAfter ?? '');
+  const [name,         setName]         = useState(initial?.name ?? '');
+  const [date,         setDate]         = useState(initial?.date ?? today());
+  const [notesBefore,  setNotesBefore]  = useState(initial?.notesBefore ?? '');
+  const [notesAfter,   setNotesAfter]   = useState(initial?.notesAfter ?? '');
   const [exercises,    setExercises]    = useState(
-    draft?.exercises?.length ? draft.exercises : (initial?.exercises?.length ? initial.exercises : [blankLiftingExercise()])
+    initial?.exercises?.length ? initial.exercises : [blankLiftingExercise()]
   );
   const [error,        setError]        = useState('');
   const [result,       setResult]       = useState(null);
@@ -392,24 +376,19 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
     api.getProfile().then(d => { if (d.profile?.weight) setProfileWeight(Number(d.profile.weight)); }).catch(()=>{});
   }, []);
 
-  // Auto-save a draft as they type, so an accidental navigation away doesn't lose it —
-  // but not if the form is still completely blank, since there'd be nothing to protect.
+  // Report edits upward, but only once something differs from how the form
+  // started — opening a plan's workout and leaving without touching it isn't
+  // an unfinished workout. (Compared by value rather than a "first render" flag,
+  // which React's dev mode double-mounting would trip.)
+  const startingValues = useRef(null);
   useEffect(() => {
-    if (!isDraftable) return;
-    const hasContent = name || notesBefore || notesAfter || exercises.some(e =>
-      e.exerciseName || e.sets || e.reps || e.weight || e.durationMinutes || e.distance || e.notes || e.customName
-    );
-    if (!hasContent) return;
-    saveDraft({ name, date, notesBefore, notesAfter, exercises });
+    const snapshot = { name, date, notesBefore, notesAfter, exercises };
+    const key = JSON.stringify(snapshot);
+    if (startingValues.current === null) { startingValues.current = key; return; }
+    if (key === startingValues.current) return;
+    if (onChange) onChange(snapshot);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, date, notesBefore, notesAfter, exercises]);
-
-  function discardDraft() {
-    clearDraft();
-    setUsingDraft(false);
-    setName(''); setDate(today()); setNotesBefore(''); setNotesAfter('');
-    setExercises([blankLiftingExercise()]);
-  }
 
   function updateExercise(i, next) {
     setExercises(prev => prev.map((e, idx) => idx === i ? next : e));
@@ -421,6 +400,7 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
     setExercises(prev => [...prev, blankLiftingExercise()]);
   }
 
+  const premium = usePremium();
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [voiceError, setVoiceError] = useState('');
   const [saunaMinutes, setSaunaMinutes] = useState('');
@@ -440,6 +420,17 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
   // and similarly for any other minor spoken variation.
   function normalizeExerciseName(s) {
     return String(s || '').toLowerCase().trim().replace(/s$/, '');
+  }
+
+  // Premium feature with a few free uses a month. Checked before the mic opens
+  // so nobody talks through a whole workout only to be told they're out.
+  function voiceAllowed() {
+    const f = premium?.status?.enabled && !premium.status.premium ? premium.status.features?.voice_log : null;
+    if (f && f.remaining <= 0) {
+      premium.showUpgrade({ error: `You've used your ${f.limit} free ${f.label} for this month.` });
+      return false;
+    }
+    return true;
   }
 
   async function handleWorkoutVoice(text) {
@@ -571,7 +562,6 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
     try {
       const data = await onSubmit(payload);
       setResult(data);
-      if (isDraftable) clearDraft();
       if (mode === 'create') {
         setCreatedWorkoutId(data.workoutId || null);
         // The workout saved; photos are a separate request, so a failure here
@@ -618,13 +608,6 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
 
   return (
     <form onSubmit={submit} className="form-stack">
-      {usingDraft && (
-        <div className="glass-card" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'10px'}}>
-          <span style={{fontSize:'13px'}}>Resumed your unsaved workout.</span>
-          <button type="button" className="btn-ghost-sm" onClick={discardDraft}>Discard</button>
-        </div>
-      )}
-
       <div className="field">
         <label className="label">Workout Name (optional)</label>
         <input className="input" placeholder="e.g. Leg Day" value={name} onChange={e => setName(e.target.value)} />
@@ -645,7 +628,8 @@ export default function WorkoutForm({ mode = 'create', initial, onSubmit, onDele
 
       <div className="field">
         <label className="label">Or Say Your Workout (optional)</label>
-        <VoiceNoteButton label="Describe Your Exercises" onTranscript={handleWorkoutVoice}/>
+        <VoiceNoteButton label="Describe Your Exercises" onTranscript={handleWorkoutVoice} canStart={voiceAllowed}/>
+        <AiQuotaBadge feature="voice_log"/>
         {voiceLoading && <p className="muted" style={{fontSize:'12px',marginTop:'6px'}}>Working it out…</p>}
         {voiceError && <p className="form-error" style={{marginTop:'6px'}}>{voiceError}</p>}
       </div>

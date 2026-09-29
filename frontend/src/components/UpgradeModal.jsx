@@ -8,6 +8,7 @@ const PERKS = [
   'Unlimited AI workout plans',
   'Unlimited race training plans',
   'Unlimited food photo and nutrition-label scans',
+  'Unlimited voice exercise entry — just say what you did',
 ];
 
 export default function UpgradeModal({ detail, onClose }) {

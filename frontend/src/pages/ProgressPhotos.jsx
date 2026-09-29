@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -24,7 +24,14 @@ export default function ProgressPhotos() {
 
   const [stats, setStats] = useState({ workouts: 0, prs: 0, streak: 0, volume: 0 });
   const [showCompare, setShowCompare] = useState(false);
-  const [showStrength, setShowStrength] = useState(false);
+  // ?show=strength (from the home page's "PRs Set" card) opens the chart and scrolls to it.
+  const [searchParams] = useSearchParams();
+  const openStrength = searchParams.get('show') === 'strength';
+  const [showStrength, setShowStrength] = useState(openStrength);
+  const strengthRef = useRef(null);
+  useEffect(() => {
+    if (openStrength && strengthRef.current) strengthRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [openStrength, showStrength]);
   const [showVolumeFact, setShowVolumeFact] = useState(false);
 
   useEffect(() => {
@@ -121,7 +128,7 @@ export default function ProgressPhotos() {
 
       {/* Strength progress chart — shown when the "PRs Set" stat card above is tapped */}
       {showStrength && (
-        <section className="section">
+        <section className="section" ref={strengthRef} style={{scrollMarginTop:'70px'}}>
           <div className="section-header">
             <span className="section-title">Strength Progress</span>
           </div>

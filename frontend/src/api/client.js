@@ -9,6 +9,7 @@ const METERED = [
   /^\/api\/workout-plans\/(generate|\d+\/regenerate)$/,
   /^\/api\/race-plans$/,
   /^\/api\/meal-logs\/(recognize|recognize-label)$/,
+  /^\/api\/workouts\/parse-voice$/,
 ];
 
 // A 402 PREMIUM_REQUIRED from any call opens the upgrade popup (see
@@ -75,6 +76,9 @@ export const api = {
 
   logWorkout:    (payload, photoFile) => uploadFile('/api/workouts', workoutFormData(payload, photoFile)),
   parseWorkoutVoice: (b) => request('POST', '/api/workouts/parse-voice', b),
+  getWorkoutDraft:   ()      => request('GET',    '/api/workouts/draft'),
+  saveWorkoutDraft:  (draft) => request('PUT',    '/api/workouts/draft', { draft }),
+  clearWorkoutDraft: ()      => request('DELETE', '/api/workouts/draft'),
   updateWorkout: (id, payload, photoFile) => uploadFile(`/api/workouts/${id}`, workoutFormData(payload, photoFile), 'PUT'),
   getWorkouts:   ()   => request('GET',    '/api/workouts'),
   getWorkout:    (id) => request('GET',    `/api/workouts/${id}`),
