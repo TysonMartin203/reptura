@@ -1,4 +1,5 @@
 const jwt    = require('jsonwebtoken');
+const { signSession } = require('../config/session');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const pool   = require('../config/db');
@@ -13,7 +14,7 @@ const {
 const googleClient = process.env.GOOGLE_CLIENT_ID ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID) : null;
 
 function issueSession(res, user, extra = {}) {
-  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+  const token = signSession(user.id);
   res.json({
     token, userId: user.id, username: user.username, email: user.email,
     avatarUrl: user.avatar_url || null, theme: user.theme || 'light',
@@ -79,7 +80,7 @@ async function register(req, res) {
     // Crews flagged auto_join (Alpha Testers) pick up every new account. Never
     // let this stop someone signing up.
     addToAutoJoinCrews(id).catch(e => console.error('Auto-join crews failed:', e.message));
-    const token = jwt.sign({ userId: id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = signSession(id);
     res.status(201).json({ token, userId: id, username, email, theme: 'light', bio: null, notifyBuzz: true, notifyMessages: true, notifyReactions: true, notifyFriendRequests: true, notifyInvites: true, weightUnit: 'lbs', distanceUnit: 'mi', tutorialDone: false, isNewUser: true, isAdmin: false });
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY')

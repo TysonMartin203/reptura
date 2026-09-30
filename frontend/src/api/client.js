@@ -14,7 +14,18 @@ const METERED = [
 
 // A 402 PREMIUM_REQUIRED from any call opens the upgrade popup (see
 // PremiumContext), so no individual page has to handle it.
+//
+// Sessions: the server renews a login as it's used (X-Refreshed-Token) — keep
+// the newest one. And when it says a login is no longer valid, sign out
+// properly (see AuthContext) instead of leaving an app that looks signed in
+// but can't load anything.
 function announce(method, path, res, data) {
+  const renewed = res.headers.get('X-Refreshed-Token');
+  if (renewed && localStorage.getItem('reptura_token')) localStorage.setItem('reptura_token', renewed);
+  if (res.status === 401 && data?.code === 'SESSION_EXPIRED') {
+    window.dispatchEvent(new Event('reptura:session-expired'));
+    return;
+  }
   if (res.status === 402 && data?.code === 'PREMIUM_REQUIRED') {
     window.dispatchEvent(new CustomEvent('reptura:premium-required', { detail: data }));
   } else if (res.ok && method === 'POST' && METERED.some(r => r.test(path))) {

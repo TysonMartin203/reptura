@@ -1,4 +1,5 @@
-const CACHE = 'reptura-v1';
+// Bumped when caching rules change, so old caches are cleared on activate.
+const CACHE = 'reptura-v2';
 const STATIC = [
   '/',
   '/index.html',
@@ -27,11 +28,12 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   
-  // Never cache API calls
-  if (url.pathname.startsWith('/api') || url.hostname !== self.location.hostname) {
-    e.respondWith(fetch(e.request));
-    return;
-  }
+  // API calls and anything on another host (the Railway backend, fonts, maps):
+  // don't intercept at all. Re-fetching them in here added nothing, and when a
+  // phone's connection blipped the rejected fetch surfaced as the opaque
+  // "FetchEvent.respondWith received an error: Load failed" instead of the
+  // app's own error handling.
+  if (url.pathname.startsWith('/api') || url.hostname !== self.location.hostname) return;
 
   // Network-first for HTML (always get fresh app shell)
   if (e.request.mode === 'navigate') {

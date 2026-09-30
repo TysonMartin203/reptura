@@ -37,6 +37,8 @@ app.use(cors({
     cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
+  // Lets the app read the renewed login the auth check attaches to responses.
+  exposedHeaders: ['X-Refreshed-Token'],
 }));
 
 app.use(express.json());

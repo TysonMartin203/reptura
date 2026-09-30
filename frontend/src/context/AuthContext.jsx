@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -36,6 +36,18 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('reptura_user');
     setUser(null);
   }
+
+  // The server rejected the saved login (expired, or from before a reset).
+  // Send them to the login screen with a note, rather than an empty app.
+  useEffect(() => {
+    function onExpired() {
+      if (!localStorage.getItem('reptura_user')) return;
+      try { sessionStorage.setItem('reptura_session_notice', 'Your session expired — please log in again. Your data is safe.'); } catch { /* ignore */ }
+      logout();
+    }
+    window.addEventListener('reptura:session-expired', onExpired);
+    return () => window.removeEventListener('reptura:session-expired', onExpired);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, updateUser }}>

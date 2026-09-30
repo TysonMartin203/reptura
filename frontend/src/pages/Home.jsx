@@ -9,6 +9,11 @@ export default function Home() {
   const [mode,    setMode]    = useState('login');
   const [form,    setForm]    = useState({ username: '', email: '', password: '', confirmPassword: '' });
   const [error,   setError]   = useState('');
+  // Set by AuthContext when a saved login was rejected — shown once.
+  const [notice] = useState(() => {
+    try { const n = sessionStorage.getItem('reptura_session_notice'); sessionStorage.removeItem('reptura_session_notice'); return n || ''; }
+    catch { return ''; }
+  });
   const [loading, setLoading] = useState(false);
   const { user, login } = useAuth();
   const navigate  = useNavigate();
@@ -67,6 +72,9 @@ export default function Home() {
             <button className={mode === 'register' ? 'tab active' : 'tab'} onClick={() => setMode('register')}>Sign Up</button>
           </div>
 
+          {notice && (
+            <p className="glass-card" style={{fontSize:'13px',marginBottom:'14px',border:'1px solid var(--accent)',textAlign:'center'}}>{notice}</p>
+          )}
           <form onSubmit={submit} className="form-stack">
             {mode === 'register' && (
               <div className="field">
